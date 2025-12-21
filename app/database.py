@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-db_url = "postgresql://{username}:{password}@{host}:{port}/{database}".format(
+db_url = "postgresql+psycopg2://{username}:{password}@{host}:{port}/{database}".format(
     username=os.getenv("DB_USER"),
     password=os.getenv("DB_PWD"),
     host=os.getenv("DB_HOST"),
