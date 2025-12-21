@@ -10,7 +10,7 @@ app = FastAPI(title="Polux")
 
 @app.post("/register")
 def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
-    if crud.get_user_by_email(db, email=user.email):
+    if crud.get_user_by_email(db, email=str(user.email)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
     if not crud.create_user(db, user):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to register user")
@@ -19,9 +19,9 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
 
 @app.post("/login")
 def login(user: schemas.UserLogin, db: Session = Depends(database.get_db)):
-    db_user = crud.get_user_by_email(db, email=user.email)
-    if not db_user or not crud.verify_password(user.password, db_user.password):
+    db_user = crud.get_user_by_email(db, email=str(user.email))
+    if not db_user or not crud.verify_password(user.password.get_secret_value(), db_user.password):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect email or password")
 
-    token = auth.create_access_token({"user_id": db_user.id, "email": user.email, "name": user.name})
+    token = auth.create_access_token({"user_id": str(db_user.id), "email": db_user.email, "name": db_user.name})
     return {"access_token": token, "token_type": "bearer"}
