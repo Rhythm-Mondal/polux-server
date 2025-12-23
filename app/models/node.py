@@ -50,7 +50,7 @@ class Node(Base):
     __tablename__ = "nodes"
     id = Column(Integer, primary_key=True, autoincrement=True)
     parent_id = Column(Integer, ForeignKey("nodes.id"), nullable=True, index=True)
-    type = Column(Enum(NodeType), index=True)
+    type = Column(Enum(NodeType), nullable=False, index=True)
     name = Column(String, index=True)
     path = Column(LtreeType, index=True, nullable=False)
     space_id = Column(UUID, ForeignKey("spaces.id"), nullable=False, index=True)
@@ -59,6 +59,7 @@ class Node(Base):
     updated_at = Column(
         DateTime, default=func.now(), onupdate=func.now(), nullable=False
     )
+    status = Column(Enum(NodeStatus), default=NodeStatus.ACTIVE, index=True)
 
     __table_args__ = (
         Index("idx_space_parent", "space_id", "parent_id"),
