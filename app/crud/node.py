@@ -11,3 +11,5 @@ def get_user_spaces(db: Session, user_id: UUID) -> list[models.node.Space]:
 def create_user_space(db: Session, body: schemas.node.CreateSpace) -> models.node.Space:
     pass
 
+def list_node_children(db: Session, node_id: int) -> schemas.node.ListNodeChildrenOut:
+    pass

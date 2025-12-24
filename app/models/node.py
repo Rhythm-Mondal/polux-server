@@ -11,9 +11,10 @@ from sqlalchemy import (
     DateTime,
     Enum,
     func,
-    Index, UniqueConstraint,
+    Index, UniqueConstraint, CheckConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship
 from sqlalchemy_utils import LtreeType
 
 from app.utils.database import Base
@@ -84,3 +85,28 @@ class Node(Base):
 #     data = Column(JSONB, nullable=False)
 #     status = Column(String, nullable=False)
 #     expire_at = Column(DateTime)
+
+
+class SharePermission:
+    READ = 10
+    WRITE = 20
+    ADMIN = 30
+
+
+class NodeShares(Base):
+    __tablename__ = "node_shares"
+    id = Column(UUID, primary_key=True, default=uuid4)
+    node_id = Column(Integer, ForeignKey("nodes.id"), nullable=False, index=True)
+    user_id = Column(UUID, ForeignKey("users.id"), nullable=False, index=True)
+    permission = Column(Integer, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("permission in (10, 20, 30)"),
+        Index("idx_share_user_node", "user_id", "node_id"),
+    )
+
+
+class NodeShareExclusion(Base):
+    __tablename__ = "node_share_exclusions"
+    share_id = Column(UUID, ForeignKey("shares.id"), primary_key=True)
+    node_id = Column(Integer, ForeignKey("nodes.id"), primary_key=True)
