@@ -24,7 +24,6 @@ class ListNodeChildrenIn(BaseModel):
             return 10
         return self.page_size
 
-
     @computed_field
     @property
     def offset(self) -> int | None:
@@ -72,5 +71,3 @@ class RestoreNode(BaseModel):
 
 class DeleteNode(BaseModel):
     pass
-
-

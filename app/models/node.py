@@ -11,7 +11,9 @@ from sqlalchemy import (
     DateTime,
     Enum,
     func,
-    Index, UniqueConstraint, CheckConstraint,
+    Index,
+    UniqueConstraint,
+    CheckConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
@@ -31,9 +33,7 @@ class Space(Base):
         DateTime, default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    __table_args__ = (
-        UniqueConstraint("owner_id", "name", name="uniq_space_name"),
-    )
+    __table_args__ = (UniqueConstraint("owner_id", "name", name="uniq_space_name"),)
 
 
 class NodeType(enum.StrEnum):

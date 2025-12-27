@@ -11,10 +11,10 @@ make setup
 ```
 This will do the following,
 
-- setup virtualenv `.venv`
+- set up virtualenv `.venv`
 - install required packages which includes `black` & `pipreqs`
-- setup a sample of a local environment file `.env`
-- setup local **postgres** if not installed
+- set up a sample of a local environment file `.env`
+- set up local **postgres** if not installed
 
 Then run the following make command
 ```
