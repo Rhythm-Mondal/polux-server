@@ -107,7 +107,22 @@ responses:
 
 ## 2. Space management API's
 
-### 2.1 List Spaces
+### 2.1 Create Spaces
+```
+POST /spaces
+
+body:{
+    name: str  [3-128 characters]
+}
+
+responses:
+400 Bad Request
+401 Unauthorized
+409 A space with the same name already exists
+201 Ok
+```
+
+### 2.2 List Spaces
 ```
 GET /spaces
 
@@ -139,66 +154,23 @@ The omission of both page and page_size will be interpreted as 'do not paginate'
 This will be assumed for all future paginated queries
 ```
 
-### 2.2 Create Spaces
+### 2.3 Rename Space
 ```
-POST /spaces
+PATCH /spaces/{space_id}
 
-body:{
-    name: str  [3-128 characters]
+body: {
+    name: str
 }
 
 responses:
-400 Bad Request
-401 Unauthorized
-409 A space with the same name already exists
-201 Ok
-```
-
-### 2.3 List Space Content
-```
-GET /spaces/me/nodes
-GET /spaces/{space_id}/nodes
-
-params: {
-    page: int
-    page_size: int
-}
-
-resposes:
-400 Bad Request
+400 Bad request
 401 Unauthorized
 404 Not found
+409 Space with same name already exists
 200 Ok
-{
-    total: int
-    nodes: [
-        ...,
-        {
-            id: int
-            parent_id: int / null
-            space_id: uuid
-            type: str              [file or folder]
-            name: str
-            uploader_id: uuid
-            created_at: datetime
-            updated_at: datetime
-            is_shared: bool
-            can: {
-                open: bool
-                download: bool,
-                rename: bool,
-                copy: bool,
-                move: bool,
-                paste: bool,
-                archive: bool,
-                delete: bool,
-                share: bool,
-            }
-        },
-        ...
-    ]
-}
+
 ```
+
 
 ### 2.4 Delete Space
 ```
@@ -227,7 +199,7 @@ POST /spaces/{space_id}/nodes/files
 
 body: {
     name: str
-    parent_id: int
+    parent_id: int   [optional]
     overwrite: bool  [optional]
 }
 
@@ -281,7 +253,54 @@ responses:
 }
 ```
 
-### 3.4 List Folder Content
+### 3.4 List Space Content
+```
+GET /spaces/me/nodes
+GET /spaces/{space_id}/nodes
+
+params: {
+    page: int
+    page_size: int
+}
+
+resposes:
+400 Bad Request
+401 Unauthorized
+404 Not found
+200 Ok
+{
+    total: int
+    nodes: [
+        ...,
+        {
+            id: int
+            parent_id: int / null
+            space_id: uuid
+            type: str              [file or folder]
+            name: str
+            uploader_id: uuid
+            created_at: datetime
+            updated_at: datetime
+            is_shared: bool
+            can: {
+                open: bool
+                upload: bool
+                download: bool,
+                rename: bool,
+                copy: bool,
+                cut: bool,
+                paste: bool,
+                archive: bool,
+                delete: bool,
+                share: bool,
+            }
+        },
+        ...
+    ]
+}
+```
+
+### 3.5 List Folder Content
 ```
 GET /spaces/me/nodes/{node_id}/list
 GET /spaces/{space_id}/nodes/{node_id}/list
@@ -313,10 +332,11 @@ resposes:
             is_shared: bool
             can: {
                 open: bool
+                upload: bool
                 download: bool,
                 rename: bool,
                 copy: bool,
-                move: bool,
+                cut: bool,
                 paste: bool,
                 archive: bool,
                 delete: bool,
@@ -328,7 +348,7 @@ resposes:
 }
 ```
 
-### 3.5 Rename File/Folder
+### 3.6 Rename File/Folder
 ```
 PATCH /spaces/me/node/{node_id}
 PATCH /spaces/{space_id}/node/{node_id}
@@ -345,7 +365,7 @@ responses
 200 Ok
 ```
 
-### 3.6 Copy File/Folder
+### 3.7 Copy File/Folder
 ```
 PUT /spaces/me/node/{node_id}/copy
 PUT /spaces/{space_id}/node/{node_id}/copy
@@ -369,7 +389,7 @@ responses:
 ** It is assumed for folders all children are also copied
 ```
 
-### 3.7 Move File/Folder
+### 3.8 Move File/Folder
 ```
 PUT /spaces/me/node/{node_id}/move
 PUT /spaces/{space_id}/node/{node_id}/move
@@ -394,7 +414,7 @@ responses:
 ** It is assumed for folders all children are also moved
 ```
 
-### 3.8 Archive File/Folder
+### 3.9 Archive File/Folder
 ```
 PATCH /spaces/me/node/{node_id}/archive
 PATCH /spaces/{space_id}/node/{node_id}/archive
@@ -407,7 +427,7 @@ responses:
 200 Ok
 ```
 
-### 3.9 Delete File/Folder
+### 3.10 Delete File/Folder
 ```
 DELETE /spaces/me/node/{node_id}
 DELETE /spaces/{space_id}/node/{node_id}
@@ -420,7 +440,7 @@ responses:
 400 Bad request
 401 Unauthorized
 404 Not found
-409 Folder contains content
+409 Folder contains content delete content as well
 200 Ok
 ```
 
@@ -477,13 +497,58 @@ responses:
 }
 ```
 
+### 4.3 List Shared Files/Folders
+```
+GET /spaces/shared/nodes
+
+params: {
+    page: int
+    page_size: int
+}
+
+responses:
+400 Bad request
+401 Unauthorized
+404 Not found
+200 Ok
+{
+    total: int
+    nodes: [
+        ...,
+        {
+            id: int
+            parent_id: int / null
+            space_id: uuid
+            type: str              [file or folder]
+            name: str
+            uploader_id: uuid
+            created_at: datetime
+            updated_at: datetime
+            is_shared: bool
+            can: {
+                open: bool
+                upload: bool
+                download: bool,
+                rename: bool,
+                copy: bool,
+                cut: bool,
+                paste: bool,
+                archive: bool,
+                delete: bool,
+                share: bool,
+            }
+        },
+        ...
+    ]
+}
+```
+
 ## 5. Archive related API's
 
 ### 5.1 List Archived Files/Folders
 ```
 GET /spaces/me/archives
 GET /spaces/{space_id}/archives
-GET /shares/archives
 
 params: {
     node_id: int    [optional][expand under folder] 
@@ -518,19 +583,19 @@ responses:
 
 ### 5.2 Restore File/Folder
 ```
-PATCH /spaces/me/node/{node_id}/restore
-PATCH /spaces/{space_id}/node/{node_id}/restore
+PATCH /spaces/me/nodes/{node_id}/restore
+PATCH /spaces/{space_id}/nodes/{node_id}/restore
 
 body: {
-    name: str       [3-128 characters]
-    overwrite: bool  
+    name: str       [optional][3-128 characters]
+    overwrite: bool [optional]
 }
 
 responses:
 400 Bad request
 401 Unauthorized
 404 Not found
-409 A file / folder with the same name exist in the restore location
+409 A file / folder with the same name exist in the restore location, rename or overwrite
 200 Ok
 ```
 

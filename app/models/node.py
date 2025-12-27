@@ -90,7 +90,7 @@ class Node(Base):
 class SharePermission:
     READ = 10
     WRITE = 20
-    ADMIN = 30
+    MANAGE = 30
 
 
 class NodeShares(Base):

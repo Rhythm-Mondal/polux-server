@@ -1,73 +1,100 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field, computed_field
 
-
-class CreateSpace(BaseModel):
-    name: str = Field(max_length=128)
+from app.schemas._common import CommonPaginatedQuery
 
 
-class CreateNode(BaseModel):
-    name: str = Field(max_length=128)
+class Node(BaseModel):
+    id: int
+    parent_id: int | None = None
+    space_id: UUID
+    type: str
+    name: str
+    uploader_id: UUID
+    created_at: datetime
+    updated_at: datetime
+    is_shared: bool
+
+
+class ListNodeCan(BaseModel):
+    open: bool = False
+    upload: bool = False
+    download: bool = False
+    rename: bool = False
+    copy: bool = False
+    cut: bool = False
+    paste: bool = False
+    archive: bool = False
+    delete: bool = False
+    share: bool = False
+
+
+class ListNode(Node):
+    can: ListNodeCan
+
+
+class UploadFile(BaseModel):
+    name: str
+    parent_id: int = None
+    overwrite: bool = False
+
+
+class CreateFolder(BaseModel):
+    name: str
+    parent_id: int = None
+
+
+class GetNodeResponse(Node):
+    """
+    Some file specific optional values go here
+    """
+
+
+class ListNodesResponse(BaseModel):
+    total: int
+    nodes: list[ListNode]
+
+
+class ListSpaceNodes(CommonPaginatedQuery):
+    """
+    copy
+    """
+
+
+class ListSpaceNodesResponse(ListNodesResponse):
+    """
+    copy
+    """
+
+
+class ListFolderNodes(CommonPaginatedQuery):
+    """
+    copy
+    """
+
+
+class ListFolderNodesResponse(ListNodesResponse):
+    """
+    copy
+    """
+
+
+class RenameNode(BaseModel):
+    name: str
+
+
+class CopyNode(BaseModel):
+    name: str = None
     parent_id: int = None
     space_id: UUID
 
 
-class ListNodeChildrenIn(BaseModel):
-    page: int = Field(None, gt=0)
-    page_size: int = Field(None, gt=0)
-
-    @computed_field
-    @property
-    def limit(self) -> int | None:
-        if self.page is not None and self.page_size is None:
-            return 10
-        return self.page_size
-
-    @computed_field
-    @property
-    def offset(self) -> int | None:
-        if self.page_size is not None and self.page is None:
-            return 0
-        if self.page_size is not None:
-            return (self.page - 1) * self.page_size
-        return (self.page - 1) * 10
-
-
-class ListNodes(BaseModel):
-    id: int
-    name: str
-    type: str
-    is_shared: bool = False
-    owner_id: UUID
-    uploader_id: UUID
-    space_id: UUID
-    parent_id: int | None = None
-    status: str
-    permission: str
-
-
-class ListNodeChildrenOut(BaseModel):
-    total_nodes: int = Field(0, ge=0)
-    nodes: list[ListNodes] = Field(None)
-
-
 class MoveNode(BaseModel):
-    destination_id: int
-
-
-class CopyNode(BaseModel):
-    destination_id: int
-    space_id: int = None
-
-
-class ArchiveNode(BaseModel):
-    pass
-
-
-class RestoreNode(BaseModel):
-    pass
+    name: str
+    parent_id: int
 
 
 class DeleteNode(BaseModel):
-    pass
+    recursive: bool = False
