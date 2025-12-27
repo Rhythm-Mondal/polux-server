@@ -42,7 +42,7 @@ This will also assume that all API will require Bearer token authorization in th
 
 ## 1. User related API's
 
-### User Registration
+### 1.1 User Registration
 ```
 POST /register
 
@@ -58,7 +58,7 @@ responses:
 201 Ok
 ```
 
-### User Login
+### 1.2 User Login
 ```
 POST /login
 
@@ -77,7 +77,7 @@ responses:
 }
 ```
 
-### Search Users
+### 1.3 Search Users
 ```
 POST /users/search
 
@@ -107,7 +107,7 @@ responses:
 
 ## 2. Space management API's
 
-### List Spaces
+### 2.1 List Spaces
 ```
 GET /spaces
 
@@ -139,7 +139,7 @@ The omission of both page and page_size will be interpreted as 'do not paginate'
 This will be assumed for all future paginated queries
 ```
 
-### Create Spaces
+### 2.2 Create Spaces
 ```
 POST /spaces
 
@@ -154,7 +154,7 @@ responses:
 201 Ok
 ```
 
-### List Space Content
+### 2.3 List Space Content
 ```
 GET /spaces/me/nodes
 GET /spaces/{space_id}/nodes
@@ -200,7 +200,7 @@ resposes:
 }
 ```
 
-### Delete Space
+### 2.4 Delete Space
 ```
 DELETE /spaces/{space_id}
 
@@ -220,7 +220,7 @@ responses:
 
 ## 3. File/Folder management API's
 
-### Upload File
+### 3.1 Upload File
 ```
 POST /spaces/me/nodes/files
 POST /spaces/{space_id}/nodes/files
@@ -239,7 +239,7 @@ responses:
 200 Ok
 ```
 
-### Create Folder
+### 3.2 Create Folder
 ```
 POST /spaces/me/nodes/folders
 POST /spaces/{space_id}/nodes/folders
@@ -257,7 +257,7 @@ responses:
 200 Ok
 ```
 
-### Get File/Folder Meta
+### 3.3 Get File/Folder Meta
 ```
 GET /spaces/me/nodes/{node_id}
 GET /spaces/{space_id}/nodes/{node_id}
@@ -281,7 +281,7 @@ responses:
 }
 ```
 
-### List Folder Content
+### 3.4 List Folder Content
 ```
 GET /spaces/me/nodes/{node_id}/list
 GET /spaces/{space_id}/nodes/{node_id}/list
@@ -328,7 +328,7 @@ resposes:
 }
 ```
 
-### Rename File/Folder
+### 3.5 Rename File/Folder
 ```
 PATCH /spaces/me/node/{node_id}
 PATCH /spaces/{space_id}/node/{node_id}
@@ -345,7 +345,7 @@ responses
 200 Ok
 ```
 
-### Copy File/Folder
+### 3.6 Copy File/Folder
 ```
 PUT /spaces/me/node/{node_id}/copy
 PUT /spaces/{space_id}/node/{node_id}/copy
@@ -369,7 +369,7 @@ responses:
 ** It is assumed for folders all children are also copied
 ```
 
-### Move File/Folder
+### 3.7 Move File/Folder
 ```
 PUT /spaces/me/node/{node_id}/move
 PUT /spaces/{space_id}/node/{node_id}/move
@@ -394,7 +394,7 @@ responses:
 ** It is assumed for folders all children are also moved
 ```
 
-### Archive File/Folder
+### 3.8 Archive File/Folder
 ```
 PATCH /spaces/me/node/{node_id}/archive
 PATCH /spaces/{space_id}/node/{node_id}/archive
@@ -407,7 +407,7 @@ responses:
 200 Ok
 ```
 
-### Delete File/Folder
+### 3.9 Delete File/Folder
 ```
 DELETE /spaces/me/node/{node_id}
 DELETE /spaces/{space_id}/node/{node_id}
@@ -426,7 +426,7 @@ responses:
 
 ## 4. Share related API's
 
-### Share File/Folder
+### 4.1 Share File/Folder
 ```
 PUT /spaces/me/node/{node_id}/shares
 PUT /spaces/{space_id}/node/{node_id}/shares
@@ -449,7 +449,7 @@ responses:
 404 Not found
 ```
 
-### List Shared Users
+### 4.2 List Shared Users
 ```
 GET /spaces/me/node/{node_id}/shares
 GET /spaces/{space_id}/node/{node_id}/shares
@@ -479,7 +479,7 @@ responses:
 
 ## 5. Archive related API's
 
-### List Archived Files/Folders
+### 5.1 List Archived Files/Folders
 ```
 GET /spaces/me/archives
 GET /spaces/{space_id}/archives
@@ -516,7 +516,7 @@ responses:
 }
 ```
 
-### Restore File/Folder
+### 5.2 Restore File/Folder
 ```
 PATCH /spaces/me/node/{node_id}/restore
 PATCH /spaces/{space_id}/node/{node_id}/restore
