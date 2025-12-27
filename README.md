@@ -122,6 +122,7 @@ responses:
 404 Not found
 200 Ok
 {
+    total: int
     spaces: [
         ...,
         {
@@ -189,7 +190,7 @@ resposes:
                 copy: bool,
                 move: bool,
                 paste: bool,
-                trash: bool,
+                archive: bool,
                 delete: bool,
                 share: bool,
             }
@@ -317,7 +318,7 @@ resposes:
                 copy: bool,
                 move: bool,
                 paste: bool,
-                trash: bool,
+                archive: bool,
                 delete: bool,
                 share: bool,
             }
@@ -401,7 +402,7 @@ PATCH /spaces/{space_id}/node/{node_id}/archive
 responses:
 400 Bad request
 401 Unauthorized
-403 Can not trash this file / folder
+403 Can not archive this file / folder
 404 Not found
 200 Ok
 ```
