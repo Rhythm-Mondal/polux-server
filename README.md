@@ -5,7 +5,7 @@ The fron-end companion to this can be found here [polux-client github](https://g
 
 # setup
 The setup **assumes** that the project is going to run on linux machine with python 3.12 and your system can execute Makefiles\
-The run the following make command to setup this project\
+The run the following make command to set up this project\
 ```
 make setup
 ```
