@@ -13,9 +13,9 @@ from app.utils.auth import get_auth_user
 
 
 def resolve_default_space_id(
-    user: Token = Depends(get_auth_user), space_id: UUID | None = Path()
+    user: Token = Depends(get_auth_user), space_id: UUID | str = Path()
 ):
-    if space_id is not None:
+    if space_id != "me":
         return space_id
 
     space_id = user.space_id

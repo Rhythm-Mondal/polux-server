@@ -1,9 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.logic.node import user_satisfies_permission, create_space_folder
 from app.logic.space import resolve_default_space_id
+from app.models.node import SharePermission
+from app.schemas.common import Token
 from app.schemas.node import (
     UploadFile,
     CreateFolder,
@@ -18,6 +21,7 @@ from app.schemas.node import (
     RenameNode,
 )
 from app.utils import database
+from app.utils.auth import get_auth_user
 
 router = APIRouter(
     prefix="/spaces",
@@ -34,14 +38,27 @@ def upload_files(
     pass
 
 
-@router.post("/me/nodes/files")
-@router.post("/{space_id}/nodes/files")
+@router.post("/me/nodes/folders")
+@router.post("/{space_id}/nodes/folders")
 def create_folder(
     body: CreateFolder,
     space_id: UUID = Depends(resolve_default_space_id),
+    user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    pass
+    if not user_satisfies_permission(
+        db, user.user_id, space_id, body.parent_id, SharePermission.WRITE
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Can not create folder here"
+        )
+
+    if not create_space_folder(db, user.user_id, space_id, body):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create folder"
+        )
+
+    return {"message": "Folder created successfully"}
 
 
 @router.get("/me/nodes/{node_id}", response_model=GetNodeResponse)

@@ -28,9 +28,9 @@ class Space(Base):
     name = Column(String, nullable=False)
     owner_id = Column(UUID, ForeignKey("users.id"), nullable=False, index=True)
     is_default = Column(Boolean, nullable=False, default=False)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(
-        DateTime, default=func.now(), onupdate=func.now(), nullable=False
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
     __table_args__ = (UniqueConstraint("owner_id", "name", name="uniq_space_name"),)
@@ -51,16 +51,34 @@ class Node(Base):
     __tablename__ = "nodes"
     id = Column(Integer, primary_key=True, autoincrement=True)
     parent_id = Column(Integer, ForeignKey("nodes.id"), nullable=True, index=True)
-    type = Column(Enum(NodeType), nullable=False, index=True)
+    type = Column(
+        Enum(
+            NodeType,
+            name="node_type",
+            values_callable=lambda x: [e.value for e in x],
+            create_type=False,
+        ),
+        nullable=False,
+        index=True,
+    )
     name = Column(String, index=True)
-    path = Column(LtreeType, index=True, nullable=False)
+    path = Column(LtreeType, index=True)
     space_id = Column(UUID, ForeignKey("spaces.id"), nullable=False, index=True)
     uploader_id = Column(UUID, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(
-        DateTime, default=func.now(), onupdate=func.now(), nullable=False
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
-    status = Column(Enum(NodeStatus), default=NodeStatus.ACTIVE, index=True)
+    status = Column(
+        Enum(
+            NodeStatus,
+            name="node_status",
+            values_callable=lambda x: [e.value for e in x],
+            create_type=False,
+        ),
+        server_default=NodeStatus.ACTIVE,
+        index=True,
+    )
 
     __table_args__ = (
         Index("idx_space_parent", "space_id", "parent_id"),
@@ -93,7 +111,7 @@ class SharePermission:
     MANAGE = 30
 
 
-class NodeShares(Base):
+class NodeShare(Base):
     __tablename__ = "node_shares"
     id = Column(UUID, primary_key=True, default=uuid4)
     node_id = Column(Integer, ForeignKey("nodes.id"), nullable=False, index=True)
