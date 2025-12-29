@@ -45,5 +45,7 @@ def list_shared_with_users(
 
 
 @router.get("/shared/nodes", response_model=ListSharedNodesResponse)
-def list_shared_nodes(query: ListSharedNodes, db: Session = Depends(database.get_session)):
+def list_shared_nodes(
+    query: ListSharedNodes, db: Session = Depends(database.get_session)
+):
     pass

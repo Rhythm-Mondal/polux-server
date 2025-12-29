@@ -36,7 +36,7 @@ class UserSearch(BaseModel):
         if not self.text:
             return []
 
-        return list(map(str.strip, self.text.split(" ")))
+        return list(map(lambda s: s.strip().lower(), self.text.split(" ")))
 
 
 class UserSearchResponse(BaseModel):

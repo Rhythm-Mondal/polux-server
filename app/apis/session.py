@@ -27,7 +27,7 @@ def login(body: UserLogin, db: Session = Depends(database.get_session)):
         {
             "user_id": str(db_user.id),
             "email": str(db_user.email),
-            "space_id": str(db_space.space_id),
+            "space_id": str(db_space.id),
         }
     )
     return {"access_token": token}

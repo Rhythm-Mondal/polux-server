@@ -108,5 +108,5 @@ class NodeShares(Base):
 
 class NodeShareExclusion(Base):
     __tablename__ = "node_share_exclusions"
-    share_id = Column(UUID, ForeignKey("shares.id"), primary_key=True)
+    share_id = Column(UUID, ForeignKey("node_shares.id"), primary_key=True)
     node_id = Column(Integer, ForeignKey("nodes.id"), primary_key=True)

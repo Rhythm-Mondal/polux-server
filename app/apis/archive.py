@@ -13,10 +13,14 @@ router = APIRouter(
     prefix="/spaces",
 )
 
+
 @router.get("/me/archives", response_model=ListArchiveResponse)
 @router.get("/{space_id}/archives", response_model=ListArchiveResponse)
 def list_archive(
-    query: ListArchive, space_id: UUID = Depends(resolve_default_space_id), user: Token = Depends(get_auth_user), db: Session = Depends(database.get_session)
+    query: ListArchive,
+    space_id: UUID = Depends(resolve_default_space_id),
+    user: Token = Depends(get_auth_user),
+    db: Session = Depends(database.get_session),
 ):
     pass
 

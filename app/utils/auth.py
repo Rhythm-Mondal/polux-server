@@ -27,7 +27,11 @@ def create_access_token(data: dict):
     to_encode = data.copy()
     if TOKEN_EXPIRE_MINUTES:
         to_encode.update(
-            {"exp": (datetime.now(UTC) + timedelta(minutes=int(TOKEN_EXPIRE_MINUTES))).timestamp()}
+            {
+                "exp": (
+                    datetime.now(UTC) + timedelta(minutes=int(TOKEN_EXPIRE_MINUTES))
+                ).timestamp()
+            }
         )
 
     return jwt.encode(to_encode, SECRET_KEY, algorithm="HS256")
@@ -39,11 +43,16 @@ def verify_access_token(token: str):
         user = Token(**payload)
 
         if user.exp and user.exp < datetime.now(UTC).timestamp():
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired"
+            )
 
         return user
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not verify credentials") from e
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not verify credentials",
+        ) from e
 
 
 def get_auth_user(

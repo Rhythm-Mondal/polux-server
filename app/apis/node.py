@@ -35,7 +35,9 @@ def upload_files(
 
 
 @router.post("/me/nodes/files")
-def create_folder_default(body: CreateFolder, db: Session = Depends(database.get_session)):
+def create_folder_default(
+    body: CreateFolder, db: Session = Depends(database.get_session)
+):
     pass
 
 
@@ -47,7 +49,9 @@ def create_folder(
 
 
 @router.get("/me/nodes/{node_id}", response_model=GetNodeResponse)
-def get_node_metadata_default(node_id: int, db: Session = Depends(database.get_session)):
+def get_node_metadata_default(
+    node_id: int, db: Session = Depends(database.get_session)
+):
     pass
 
 
@@ -95,7 +99,9 @@ def rename_node_default(node_id: int, db: Session = Depends(database.get_session
 
 
 @router.patch("/{space_id}/nodes/{node_id}")
-def rename_node(space_id: UUID, node_id: int, db: Session = Depends(database.get_session)):
+def rename_node(
+    space_id: UUID, node_id: int, db: Session = Depends(database.get_session)
+):
     pass
 
 
@@ -108,7 +114,10 @@ def copy_node_default(
 
 @router.patch("/{space_id}/nodes/{node_id}")
 def copy_node(
-    space_id: UUID, node_id: int, body: CopyNode, db: Session = Depends(database.get_session)
+    space_id: UUID,
+    node_id: int,
+    body: CopyNode,
+    db: Session = Depends(database.get_session),
 ):
     pass
 
@@ -122,7 +131,10 @@ def move_node_default(
 
 @router.put("/{space_id}/nodes/{node_id}/move")
 def move_node(
-    space_id: UUID, node_id: int, body: MoveNode, db: Session = Depends(database.get_session)
+    space_id: UUID,
+    node_id: int,
+    body: MoveNode,
+    db: Session = Depends(database.get_session),
 ):
     pass
 
@@ -133,7 +145,9 @@ def archive_node_default(node_id: int, db: Session = Depends(database.get_sessio
 
 
 @router.patch("/{space_id}/nodes/{node_id}/archive")
-def archive_node(space_id: UUID, node_id: int, db: Session = Depends(database.get_session)):
+def archive_node(
+    space_id: UUID, node_id: int, db: Session = Depends(database.get_session)
+):
     pass
 
 
