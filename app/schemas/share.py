@@ -14,6 +14,7 @@ class DisplayPermission(enum.StrEnum):
 
 
 class Share(BaseModel):
+    name: str | None = None
     user_id: UUID
     permission: DisplayPermission
 

@@ -490,6 +490,7 @@ responses:
         ...,
         {
             user_id: uuid
+            name: str
             permission: str  [one of viewer, editor, admin, owner]
         },
         ...
