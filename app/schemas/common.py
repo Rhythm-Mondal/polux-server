@@ -1,6 +1,12 @@
 from uuid import UUID
+from typing import Annotated
 
-from pydantic import BaseModel, Field, computed_field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, StringConstraints, computed_field
+
+
+AlphaNumSpaceStr = Annotated[
+    str, StringConstraints(strip_whitespace=True, pattern=r"^[a-zA-Z0-9 ]+$")
+]
 
 
 class Token(BaseModel):
@@ -11,8 +17,8 @@ class Token(BaseModel):
 
 
 class CommonPaginatedQuery(BaseModel):
-    page: int = Field(None, ge=1)
-    page_size: int = Field(None, gt=0)
+    page: int | None = Field(None, ge=1)
+    page_size: int | None = Field(None, ge=0)
 
     @computed_field
     @property
@@ -21,11 +27,11 @@ class CommonPaginatedQuery(BaseModel):
             return 0
         if self.page_size is not None:
             return (self.page - 1) * self.page_size
-        return None
+        return self.page
 
     @computed_field
     @property
-    def limit(self) -> int:
-        if self.page_size is None and self.page_size is not None:
+    def limit(self) -> int | None:
+        if self.page_size is None and self.page is not None:
             return 10
         return self.page_size

@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, computed_field
 
-from app.schemas.common import CommonPaginatedQuery
+from app.schemas.common import AlphaNumSpaceStr, CommonPaginatedQuery
 
 
 class Space(BaseModel):
@@ -14,7 +14,7 @@ class Space(BaseModel):
 
 
 class CreateSpace(BaseModel):
-    name: str = Field(min_length=3, max_length=128)
+    name: AlphaNumSpaceStr = Field(min_length=3, max_length=128)
 
 
 class ListSpaces(CommonPaginatedQuery):
@@ -29,8 +29,8 @@ class ListSpacesResponse(BaseModel):
 
 
 class RenameSpace(BaseModel):
-    name: str
+    name: AlphaNumSpaceStr = Field(min_length=3, max_length=128)
 
 
 class DeleteSpace(BaseModel):
-    delete_content: bool = False
+    delete_contents: bool = False

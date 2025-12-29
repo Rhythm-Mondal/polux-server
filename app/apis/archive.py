@@ -1,12 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.logic.space import resolve_default_space_id
+from app.schemas.archive import ListArchiveResponse, ListArchive, RestoreNode
 from app.schemas.common import Token
 from app.utils import database
-from app.schemas.archive import ListArchiveResponse, ListArchive, RestoreNode
-from app.logic.space import resolve_default_space_id
 from app.utils.auth import get_auth_user
 
 router = APIRouter(
