@@ -1,4 +1,13 @@
-from pydantic import BaseModel, Field, computed_field
+from uuid import UUID
+
+from pydantic import BaseModel, Field, computed_field, EmailStr
+
+
+class Token(BaseModel):
+    space_id: UUID
+    user_id: UUID
+    email: EmailStr
+    exp: float | None = None
 
 
 class CommonPaginatedQuery(BaseModel):

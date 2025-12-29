@@ -2,7 +2,7 @@ import enum
 from uuid import UUID
 
 from pydantic import BaseModel
-from app.schemas._common import CommonPaginatedQuery
+from app.schemas.common import CommonPaginatedQuery
 from app.schemas.node import ListNodesResponse
 
 

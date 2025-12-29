@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, computed_field
 
-from app.schemas._common import CommonPaginatedQuery
+from app.schemas.common import CommonPaginatedQuery
 
 
 class Space(BaseModel):

@@ -13,22 +13,22 @@ router = APIRouter(
 
 
 @router.post("/")
-def create_space(request: CreateSpace, db: Session = Depends(database.get_db)):
+def create_space(request: CreateSpace, db: Session = Depends(database.get_session)):
     pass
 
 
 @router.get("/", response_model=ListSpacesResponse)
-def list_spaces(query: ListSpaces, db: Session = Depends(database.get_db)):
+def list_spaces(query: ListSpaces, db: Session = Depends(database.get_session)):
     pass
 
 
 @router.patch("/{space_id}")
-def rename_space(space_id: UUID, db: Session = Depends(database.get_db)):
+def rename_space(space_id: UUID, db: Session = Depends(database.get_session)):
     pass
 
 
 @router.delete("/{space_id}")
 def delete_space(
-    space_id: UUID, query: DeleteSpace, db: Session = Depends(database.get_db)
+    space_id: UUID, query: DeleteSpace, db: Session = Depends(database.get_session)
 ):
     pass

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from app.schemas._common import CommonPaginatedQuery
+from app.schemas.common import CommonPaginatedQuery
 from app.schemas.node import Node
 
 
