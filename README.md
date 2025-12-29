@@ -564,7 +564,7 @@ responses:
 200 Ok
 {
     total: int
-    nodes: {
+    nodes: [
         id: int
         parent_id: int / null
         space_id: uuid
@@ -578,7 +578,7 @@ responses:
             restore: bool
             delete: bool
         }
-    }
+    ]
 }
 ```
 
