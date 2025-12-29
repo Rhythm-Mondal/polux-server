@@ -14,9 +14,7 @@ def get_user_by_email(db: Session, email: str) -> User:
 def create_user(db: Session, user: UserCreate) -> User | None:
     hashed_password = hash_password(user.password.get_secret_value())
     try:
-        db_user = User(
-            name=user.name, email=user.email, password=hashed_password
-        )
+        db_user = User(name=user.name, email=user.email, password=hashed_password)
         db.add(db_user)
         db.commit()
         return db_user
