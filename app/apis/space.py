@@ -4,12 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.logic.space import (
-    get_user_space_by_name,
-    create_user_space,
-    list_user_spaces,
-    count_listed_user_spaces,
-    rename_user_space,
-    delete_user_space,
+    logic_get_user_space_by_name,
+    logic_create_space,
+    logic_list_spaces,
+    logic_count_listed_spaces,
+    logic_rename_space,
+    logic_delete_space,
 )
 from app.schemas.common import Token
 from app.schemas.space import (
@@ -33,13 +33,13 @@ def create_space(
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    if get_user_space_by_name(db, user.user_id, body.name) is not None:
+    if logic_get_user_space_by_name(db, user.user_id, body.name) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Space with the same name already exists",
         )
 
-    if not create_user_space(db, user, body):
+    if not logic_create_space(db, user, body):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create space"
         )
@@ -52,8 +52,8 @@ def list_spaces(
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    spaces = list_user_spaces(db, user.user_id, query.offset, query.limit)
-    total = count_listed_user_spaces(db, user.user_id)
+    spaces = logic_list_spaces(db, user.user_id, query.offset, query.limit)
+    total = logic_count_listed_spaces(db, user.user_id)
     return {"spaces": spaces, "total": total}
 
 
@@ -64,7 +64,7 @@ def rename_space(
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    result = rename_user_space(db, user.user_id, space_id, body.name)
+    result = logic_rename_space(db, user.user_id, space_id, body.name)
     if not result:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to rename space"
@@ -79,7 +79,7 @@ def delete_space(
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    result = delete_user_space(db, user.user_id, space_id, query.delete_contents)
+    result = logic_delete_space(db, user.user_id, space_id, query.delete_contents)
     if not result:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete space"

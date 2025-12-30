@@ -13,7 +13,7 @@ from app.schemas.space import CreateSpace
 from app.utils.auth import get_auth_user
 
 
-def resolve_default_space_id(
+def logic_resolve_default_space_id(
     user: Token = Depends(get_auth_user), space_id: UUID | Literal["me"] = Path()
 ):
     if isinstance(space_id, UUID):
@@ -27,7 +27,7 @@ def resolve_default_space_id(
     return user.space_id
 
 
-def create_user_default_space(db: Session, user_id: UUID) -> Space | None:
+def logic_create_user_default_space(db: Session, user_id: UUID) -> Space | None:
     try:
         db_space = Space(
             name="Your Space",
@@ -43,11 +43,11 @@ def create_user_default_space(db: Session, user_id: UUID) -> Space | None:
         return None
 
 
-def get_user_default_space(db: Session, user_id: UUID) -> Space:
+def logic_get_user_default_space(db: Session, user_id: UUID) -> Space:
     return db.query(Space).filter(Space.owner_id == user_id).first()
 
 
-def create_user_space(db: Session, user: Token, body: CreateSpace) -> Space | None:
+def logic_create_space(db: Session, user: Token, body: CreateSpace) -> Space | None:
     try:
         space = Space(
             name=body.name,
@@ -62,7 +62,7 @@ def create_user_space(db: Session, user: Token, body: CreateSpace) -> Space | No
         return None
 
 
-def get_user_space_by_name(db: Session, user_id: UUID, name: str) -> Space | None:
+def logic_get_user_space_by_name(db: Session, user_id: UUID, name: str) -> Space | None:
     return (
         db.query(Space)
         .filter(and_(Space.name == name, Space.owner_id == user_id))
@@ -70,7 +70,7 @@ def get_user_space_by_name(db: Session, user_id: UUID, name: str) -> Space | Non
     )
 
 
-def list_user_spaces(db: Session, user_id: UUID, offset: int = None, limit: int = None):
+def logic_list_spaces(db: Session, user_id: UUID, offset: int = None, limit: int = None):
     query = db.query(Space).filter(Space.owner_id == user_id).order_by(Space.created_at)
     if offset is not None:
         query = query.offset(offset)
@@ -79,11 +79,11 @@ def list_user_spaces(db: Session, user_id: UUID, offset: int = None, limit: int 
     return query.all()
 
 
-def count_listed_user_spaces(db: Session, user_id: UUID):
+def logic_count_listed_spaces(db: Session, user_id: UUID):
     return db.query(Space).filter(Space.owner_id == user_id).count()
 
 
-def rename_user_space(db: Session, user_id: UUID, space_id: UUID, name: str):
+def logic_rename_space(db: Session, user_id: UUID, space_id: UUID, name: str):
     space = (
         db.query(Space)
         .filter(and_(Space.owner_id == user_id, Space.id == space_id))
@@ -107,7 +107,7 @@ def rename_user_space(db: Session, user_id: UUID, space_id: UUID, name: str):
         )
 
 
-def delete_user_space(
+def logic_delete_space(
     db: Session, user_id: UUID, space_id: UUID, delete_contents: bool = False
 ):
     space = (

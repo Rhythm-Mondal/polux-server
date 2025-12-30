@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.logic.space import create_user_default_space
+from app.logic.space import logic_create_user_default_space
 from app.logic.user import (
-    get_user_by_email,
-    create_user,
-    search_user,
-    count_searched_users,
+    logic_get_user_by_email,
+    logic_create_user,
+    logic_search_users,
+    logic_count_searched_users,
 )
 from app.schemas.common import Token
 from app.schemas.user import UserCreate, UserSearch, UserSearchResponse
@@ -18,16 +18,16 @@ router = APIRouter()
 
 @router.post("/register")
 def register(body: UserCreate, db: Session = Depends(database.get_session)):
-    if get_user_by_email(db, email=str(body.email)):
+    if logic_get_user_by_email(db, email=str(body.email)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
         )
-    db_user = create_user(db, body)
+    db_user = logic_create_user(db, body)
     if not db_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to register user"
         )
-    if not create_user_default_space(db, db_user.id):
+    if not logic_create_user_default_space(db, db_user.id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to create default space",
@@ -41,6 +41,6 @@ def search_users(
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    users = search_user(db, body.search_tokens, body.offset, body.limit)
-    total = count_searched_users(db, body.search_tokens)
+    users = logic_search_users(db, body.search_tokens, body.offset, body.limit)
+    total = logic_count_searched_users(db, body.search_tokens)
     return {"users": users, "total": total}

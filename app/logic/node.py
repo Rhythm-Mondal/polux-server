@@ -50,7 +50,7 @@ def space_share_permission_sub_query(user_id: UUID, space_id: UUID):
     pass
 
 
-def user_satisfies_permission(
+def logic_user_satisfies_permission(
     db: Session,
     user_id: UUID,
     space_id: UUID,
@@ -88,7 +88,7 @@ def user_satisfies_permission(
     return result
 
 
-def create_space_folder(db: Session, user_id: UUID, space_id: UUID, body: CreateFolder):
+def logic_create_folder(db: Session, user_id: UUID, space_id: UUID, body: CreateFolder):
     try:
         db_node = Node(
             space_id=space_id,
@@ -136,7 +136,7 @@ def create_space_folder(db: Session, user_id: UUID, space_id: UUID, body: Create
         return None
 
 
-def list_user_space_nodes(db: Session, space_id: UUID, query: ListSpaceNodes):
+def logic_list_space_nodes(db: Session, space_id: UUID, query: ListSpaceNodes):
     statement = (
         db.query(Node)
         .filter(
@@ -183,7 +183,7 @@ def list_user_space_nodes(db: Session, space_id: UUID, query: ListSpaceNodes):
     return list(map(out_put_mapper, db_nodes))
 
 
-def count_listed_user_space_nodes(db: Session, space_id: UUID):
+def logic_count_listed_space_nodes(db: Session, space_id: UUID):
     return (
         db.query(Node)
         .filter(
@@ -197,6 +197,6 @@ def count_listed_user_space_nodes(db: Session, space_id: UUID):
     )
 
 
-def move_space_node(db: Session, user_id: UUID, space_id: UUID, node_id: int, body: MoveNode):
+def logic_move_node(db: Session, user_id: UUID, space_id: UUID, node_id: int, body: MoveNode):
     pass
 

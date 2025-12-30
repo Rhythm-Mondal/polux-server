@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.logic.space import get_user_default_space
+from app.logic.space import logic_get_user_default_space
 from app.schemas.session import UserLogin
-from app.logic.user import get_user_by_email
+from app.logic.user import logic_get_user_by_email
 from app.utils.auth import verify_password, create_access_token
 from app.utils import database
 
@@ -12,7 +12,7 @@ router = APIRouter()
 
 @router.post("/login")
 def login(body: UserLogin, db: Session = Depends(database.get_session)):
-    db_user = get_user_by_email(db, email=str(body.email))
+    db_user = logic_get_user_by_email(db, email=str(body.email))
     if not db_user or not verify_password(
         body.password.get_secret_value(), db_user.password
     ):
@@ -21,7 +21,7 @@ def login(body: UserLogin, db: Session = Depends(database.get_session)):
             detail="Incorrect email or password",
         )
 
-    db_space = get_user_default_space(db, db_user.id)
+    db_space = logic_get_user_default_space(db, db_user.id)
 
     token = create_access_token(
         {

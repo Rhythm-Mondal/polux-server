@@ -8,7 +8,7 @@ from app.schemas.user import UserCreate
 from app.utils.auth import hash_password
 
 
-def create_user(db: Session, user: UserCreate) -> User | None:
+def logic_create_user(db: Session, user: UserCreate) -> User | None:
     hashed_password = hash_password(user.password.get_secret_value())
     try:
         db_user = User(name=user.name, email=user.email, password=hashed_password)
@@ -21,11 +21,11 @@ def create_user(db: Session, user: UserCreate) -> User | None:
         return None
 
 
-def get_user_by_email(db: Session, email: str) -> User:
+def logic_get_user_by_email(db: Session, email: str) -> User:
     return db.query(User).filter(User.email == email).first()
 
 
-def search_user(
+def logic_search_users(
     db: Session, search_tokens: list[str], offset: int = 0, limit: int = 10
 ):
     query = db.query(User)
@@ -44,7 +44,7 @@ def search_user(
     return query.all()
 
 
-def count_searched_users(db: Session, search_tokens: list[str]):
+def logic_count_searched_users(db: Session, search_tokens: list[str]):
     query = db.query(User)
     if search_tokens:
         patterns = [t + "%" for t in search_tokens]

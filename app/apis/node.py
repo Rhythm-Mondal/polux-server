@@ -4,12 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.logic.node import (
-    user_satisfies_permission,
-    create_space_folder,
-    list_user_space_nodes,
-    count_listed_user_space_nodes,
+    logic_user_satisfies_permission,
+    logic_create_folder,
+    logic_list_space_nodes,
+    logic_count_listed_space_nodes,
 )
-from app.logic.space import resolve_default_space_id
+from app.logic.space import logic_resolve_default_space_id
 from app.models.node import SharePermission
 from app.schemas.common import Token
 from app.schemas.node import (
@@ -37,7 +37,7 @@ router = APIRouter(
 @router.post("/{space_id}/nodes/files")
 def upload_files(
     body: UploadFile,
-    space_id: UUID = Depends(resolve_default_space_id),
+    space_id: UUID = Depends(logic_resolve_default_space_id),
     db: Session = Depends(database.get_session),
 ):
     pass
@@ -47,18 +47,18 @@ def upload_files(
 @router.post("/{space_id}/nodes/folders")
 def create_folder(
     body: CreateFolder,
-    space_id: UUID = Depends(resolve_default_space_id),
+    space_id: UUID = Depends(logic_resolve_default_space_id),
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    if not user_satisfies_permission(
+    if not logic_user_satisfies_permission(
         db, user.user_id, space_id, body.parent_id, SharePermission.WRITE
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Can not create folder here"
         )
 
-    if not create_space_folder(db, user.user_id, space_id, body):
+    if not logic_create_folder(db, user.user_id, space_id, body):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create folder"
         )
@@ -70,7 +70,7 @@ def create_folder(
 @router.get("/{space_id}/nodes/{node_id}", response_model=GetNodeResponse)
 def get_node_metadata(
     node_id: int,
-    space_id: UUID = Depends(resolve_default_space_id),
+    space_id: UUID = Depends(logic_resolve_default_space_id),
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
@@ -80,20 +80,20 @@ def get_node_metadata(
 @router.get("/me/nodes", response_model=ListSpaceNodesResponse)
 @router.get("/{space_id}/nodes", response_model=ListSpaceNodesResponse)
 def list_space_nodes(
-    space_id: UUID = Depends(resolve_default_space_id),
+    space_id: UUID = Depends(logic_resolve_default_space_id),
     query: ListSpaceNodes = Depends(),
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    if not user_satisfies_permission(
+    if not logic_user_satisfies_permission(
         db, user.user_id, space_id, permission=SharePermission.READ
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Can not list space"
         )
 
-    nodes = list_user_space_nodes(db, space_id, query)
-    total = count_listed_user_space_nodes(db, space_id)
+    nodes = logic_list_space_nodes(db, space_id, query)
+    total = logic_count_listed_space_nodes(db, space_id)
     return {"nodes": nodes, "total": total}
 
 
@@ -101,7 +101,7 @@ def list_space_nodes(
 @router.get("/{space_id}/nodes/{node_id}/list", response_model=ListFolderNodesResponse)
 def list_folder_nodes(
     node_id: int,
-    space_id: UUID = Depends(resolve_default_space_id),
+    space_id: UUID = Depends(logic_resolve_default_space_id),
     query: ListFolderNodes = Depends(database.get_session),
     db: Session = Depends(database.get_session),
 ):
@@ -113,7 +113,7 @@ def list_folder_nodes(
 def rename_node(
     body: RenameNode,
     node_id: int,
-    space_id: UUID = Depends(resolve_default_space_id),
+    space_id: UUID = Depends(logic_resolve_default_space_id),
     db: Session = Depends(database.get_session),
 ):
     pass
@@ -124,7 +124,7 @@ def rename_node(
 def copy_node(
     node_id: int,
     body: CopyNode,
-    space_id: UUID = Depends(resolve_default_space_id),
+    space_id: UUID = Depends(logic_resolve_default_space_id),
     db: Session = Depends(database.get_session),
 ):
     pass
@@ -135,7 +135,7 @@ def copy_node(
 def move_node(
     node_id: int,
     body: MoveNode,
-    space_id: UUID = Depends(resolve_default_space_id),
+    space_id: UUID = Depends(logic_resolve_default_space_id),
     db: Session = Depends(database.get_session),
 ):
     pass
@@ -145,7 +145,7 @@ def move_node(
 @router.patch("/{space_id}/nodes/{node_id}/archive")
 def archive_node(
     node_id: int,
-    space_id: UUID = Depends(resolve_default_space_id),
+    space_id: UUID = Depends(logic_resolve_default_space_id),
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
@@ -156,7 +156,7 @@ def archive_node(
 @router.delete("/{space_id}/nodes/{node_id}")
 def delete_node(
     node_id: int,
-    space_id: UUID = Depends(resolve_default_space_id),
+    space_id: UUID = Depends(logic_resolve_default_space_id),
     query: DeleteNode = Depends(),
     db: Session = Depends(database.get_session),
 ):
