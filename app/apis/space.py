@@ -33,13 +33,7 @@ def create_space(
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    if logic_get_user_space_by_name(db, user.user_id, body.name) is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Space with the same name already exists",
-        )
-
-    if not logic_create_space(db, user, body):
+    if not logic_create_space(db, user.user_id, body):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create space"
         )

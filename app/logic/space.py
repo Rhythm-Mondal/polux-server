@@ -38,8 +38,8 @@ def logic_create_user_default_space(db: Session, user_id: UUID) -> Space | None:
         db.commit()
         return db_space
     except Exception as e:
-        db.rollback()
         logging.error(e)
+        db.rollback()
         return None
 
 
@@ -47,18 +47,25 @@ def logic_get_user_default_space(db: Session, user_id: UUID) -> Space:
     return db.query(Space).filter(Space.owner_id == user_id).first()
 
 
-def logic_create_space(db: Session, user: Token, body: CreateSpace) -> Space | None:
+def logic_create_space(db: Session, user_id: UUID, body: CreateSpace) -> Space | None:
     try:
         space = Space(
             name=body.name,
-            owner_id=user.user_id,
+            owner_id=user_id,
         )
         db.add(space)
         db.commit()
         return space
-    except Exception as e:
-        db.rollback()
+    except IntegrityError as e:
         logging.error(e)
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Space with the same name already exists",
+        )
+    except Exception as e:
+        logging.error(e)
+        db.rollback()
         return None
 
 
@@ -70,7 +77,9 @@ def logic_get_user_space_by_name(db: Session, user_id: UUID, name: str) -> Space
     )
 
 
-def logic_list_spaces(db: Session, user_id: UUID, offset: int = None, limit: int = None):
+def logic_list_spaces(
+    db: Session, user_id: UUID, offset: int = None, limit: int = None
+):
     query = db.query(Space).filter(Space.owner_id == user_id).order_by(Space.created_at)
     if offset is not None:
         query = query.offset(offset)

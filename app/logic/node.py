@@ -82,7 +82,9 @@ def logic_user_satisfies_permission(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Node not found"
             )
 
-        node_share_resolve = node_share_permission_sub_query(user_id, space_id, db_node.path)
+        node_share_resolve = node_share_permission_sub_query(
+            user_id, space_id, db_node.path
+        )
         result = result or (db.execute(node_share_resolve).scalar() >= permission)
 
     return result
@@ -197,6 +199,7 @@ def logic_count_listed_space_nodes(db: Session, space_id: UUID):
     )
 
 
-def logic_move_node(db: Session, user_id: UUID, space_id: UUID, node_id: int, body: MoveNode):
+def logic_move_node(
+    db: Session, user_id: UUID, space_id: UUID, node_id: int, body: MoveNode
+):
     pass
-
