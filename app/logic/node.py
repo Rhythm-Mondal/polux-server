@@ -3,6 +3,7 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, insert, update, and_, func, literal
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy_utils import Ltree
 
@@ -83,6 +84,19 @@ def create_space_folder(db: Session, user_id: UUID, space_id: UUID, body: Create
         )
         db.add(db_node)
         db.commit()
+    except IntegrityError as e:
+        logging.error(e)
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A folder with same name already exists",
+        )
+    except Exception as e:
+        logging.error(e)
+        db.rollback()
+        return None
+
+    try:
         if body.parent_id:
             db_parent = (
                 db.query(Node)
@@ -94,6 +108,13 @@ def create_space_folder(db: Session, user_id: UUID, space_id: UUID, body: Create
             db_node.path = Ltree(str(db_node.id))
         db.commit()
         return db_node
+    except IntegrityError as e:
+        logging.error(e)
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Node must be unique within the space",
+        )
     except Exception as e:
         logging.error(e)
         db.rollback()

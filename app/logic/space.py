@@ -1,4 +1,5 @@
 import logging
+from typing import Literal
 from uuid import UUID
 
 from fastapi import Path, HTTPException, status, Depends
@@ -13,18 +14,17 @@ from app.utils.auth import get_auth_user
 
 
 def resolve_default_space_id(
-    user: Token = Depends(get_auth_user), space_id: UUID | str = Path()
+    user: Token = Depends(get_auth_user), space_id: UUID | Literal["me"] = Path()
 ):
-    if space_id != "me":
+    if isinstance(space_id, UUID):
         return space_id
 
-    space_id = user.space_id
-    if not space_id:
+    if not user.space_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Space not found"
         )
 
-    return space_id
+    return user.space_id
 
 
 def create_user_default_space(db: Session, user_id: UUID) -> Space | None:

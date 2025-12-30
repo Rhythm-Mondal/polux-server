@@ -14,6 +14,7 @@ from sqlalchemy import (
     Index,
     UniqueConstraint,
     CheckConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
@@ -84,6 +85,21 @@ class Node(Base):
         Index("idx_space_parent", "space_id", "parent_id"),
         Index("idx_space_status", "space_id", "status"),
         Index("idx_path_gist", "path", postgresql_using="gist"),
+        Index(
+            "uniq_space_path",
+            "space_id",
+            "path",
+            unique=True,
+            postgresql_where=(Column("path") != None),
+        ),
+        Index(
+            "uniq_active_name",
+            "parent_id",
+            "name",
+            "type",
+            unique=True,
+            postgresql_where=(Column("status") == str(NodeStatus.ACTIVE)),
+        ),
     )
 
 
