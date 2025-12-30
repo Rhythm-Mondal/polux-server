@@ -158,7 +158,7 @@ def list_user_space_nodes(db: Session, space_id: UUID, query: ListSpaceNodes):
                 "rename": True,
                 "copy": True,
                 "move": True,
-                "paste": True,
+                "paste": node.type == NodeType.FOLDER,
                 "archive": True,
                 "delete": True,
                 "share": True,
