@@ -93,7 +93,7 @@ class CopyNode(BaseModel):
 
 class MoveNode(BaseModel):
     name: str
-    parent_id: int
+    parent_id: int = None
 
 
 class DeleteNode(BaseModel):

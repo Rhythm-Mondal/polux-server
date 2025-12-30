@@ -16,37 +16,12 @@ from app.models.node import (
     NodeStatus,
     NodeType,
 )
-from app.schemas.node import CreateFolder, ListFolderNodes, ListSpaceNodes
+from app.schemas.node import CreateFolder, ListFolderNodes, ListSpaceNodes, MoveNode
 
 
-def user_satisfies_permission(
-    db: Session,
-    user_id: UUID,
-    space_id: UUID,
-    node_id: int | None = None,
-    permission: int = SharePermission.READ,
-):
-    db_space = db.query(Space).filter(Space.id == space_id).first()
-    if not db_space:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Space not found"
-        )
-
-    if db_space.owner_id == user_id:
-        return True
-
-    db_node = (
-        db.query(Node)
-        .filter(and_(Node.id == node_id, Node.space_id == space_id))
-        .first()
-    )
-    if not db_node:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Node not found"
-        )
-
-    query = (
-        select(func.coalesce(func.max(Space.permission), 0) > permission)
+def node_share_permission_sub_query(user_id: UUID, space_id: UUID, path: str | Ltree):
+    return (
+        select(func.coalesce(func.max(NodeShare.permission), 0))
         .join(
             Node,
             onclause=and_(
@@ -65,12 +40,52 @@ def user_satisfies_permission(
         .where(
             and_(
                 NodeShare.user_id == user_id,
-                Node.path.op("@>")(db_node.path),
+                Node.path.op("@>")(path),
             )
         )
     )
 
-    return db.execute(query).scalar()
+
+def space_share_permission_sub_query(user_id: UUID, space_id: UUID):
+    pass
+
+
+def user_satisfies_permission(
+    db: Session,
+    user_id: UUID,
+    space_id: UUID,
+    node_id: int | None = None,
+    permission: int = SharePermission.READ,
+):
+    db_space = db.query(Space).filter(Space.id == space_id).first()
+    if not db_space:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Space not found"
+        )
+
+    if db_space.owner_id == user_id:
+        return True
+
+    result = False
+
+    # space_share_resolve = space_share_permission_sub_query(user_id, space_id)
+    # result = result or (db.execute(space_share_resolve).scalar() >= permission)
+
+    if node_id is not None:
+        db_node = (
+            db.query(Node)
+            .filter(and_(Node.id == node_id, Node.space_id == space_id))
+            .first()
+        )
+        if not db_node:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Node not found"
+            )
+
+        node_share_resolve = node_share_permission_sub_query(user_id, space_id, db_node.path)
+        result = result or (db.execute(node_share_resolve).scalar() >= permission)
+
+    return result
 
 
 def create_space_folder(db: Session, user_id: UUID, space_id: UUID, body: CreateFolder):
@@ -180,3 +195,8 @@ def count_listed_user_space_nodes(db: Session, space_id: UUID):
         )
         .count()
     )
+
+
+def move_space_node(db: Session, user_id: UUID, space_id: UUID, node_id: int, body: MoveNode):
+    pass
+
