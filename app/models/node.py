@@ -84,7 +84,6 @@ class Node(Base):
         Index("idx_space_parent", "space_id", "parent_id"),
         Index("idx_space_status", "space_id", "status"),
         Index("idx_path_gist", "path", postgresql_using="gist"),
-        UniqueConstraint("space_id", "path", name="uniq_space_path"),
     )
 
 
