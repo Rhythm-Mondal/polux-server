@@ -2,7 +2,7 @@ import logging
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import select, insert, update, and_, func, literal, desc
+from sqlalchemy import select, insert, update, and_, func, literal, desc, text, cast, String
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy_utils import Ltree
@@ -144,11 +144,11 @@ def logic_list_space_nodes(db: Session, space_id: UUID, query: ListSpaceNodes):
         .filter(
             and_(
                 Node.space_id == space_id,
-                Node.parent_id.is_(None),
                 Node.status == NodeStatus.ACTIVE,
+                func.nlevel(Node.path) == 1,
             )
         )
-        .order_by(desc(Node.created_at))
+        .order_by(Node.type, desc(Node.created_at))
     )
     if query.offset is not None:
         statement = statement.offset(query.offset)
@@ -193,6 +193,96 @@ def logic_count_listed_space_nodes(db: Session, space_id: UUID):
                 Node.space_id == space_id,
                 Node.parent_id.is_(None),
                 Node.status == NodeStatus.ACTIVE,
+            )
+        )
+        .count()
+    )
+
+
+def logic_list_folder_nodes(db: Session, space_id: UUID, parent_id: int, query: ListFolderNodes):
+    parent_node = (
+        db.query(Node)
+        .filter(
+            and_(
+                Node.space_id == space_id,
+                Node.id == parent_id,
+                Node.status == NodeStatus.ACTIVE
+            )
+        )
+    ).first()
+    if not parent_node:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Node not found")
+
+    if parent_node.type != NodeType.FOLDER:
+        return []
+
+    statement = (
+        db.query(Node)
+        .filter(
+            and_(
+                Node.space_id == space_id,
+                Node.status == NodeStatus.ACTIVE,
+                Node.path.op("~")(literal(f'{parent_node.path}.*{{1}}')),
+            )
+        )
+        .order_by(Node.type, desc(Node.created_at))
+    )
+    if query.offset is not None:
+        statement = statement.offset(query.offset)
+    if query.limit is not None:
+        statement = statement.limit(query.limit)
+    db_nodes = statement.all()
+
+    # TODO: better implementation
+    def out_put_mapper(node: Node):
+        return {
+            "id": node.id,
+            "space_id": node.space_id,
+            "parent_id": node.parent_id,
+            "name": node.name,
+            "type": node.type,
+            "uploader_id": node.uploader_id,
+            "created_at": node.created_at,
+            "updated_at": node.updated_at,
+            "is_shared": False,
+            "can": {
+                "open": True,
+                "upload": node.type == NodeType.FOLDER,
+                "download": node.type == NodeType.FILE,
+                "rename": True,
+                "copy": True,
+                "move": True,
+                "paste": node.type == NodeType.FOLDER,
+                "archive": True,
+                "delete": True,
+                "share": True,
+            },
+        }
+
+    return list(map(out_put_mapper, db_nodes))
+
+
+def logic_count_listed_folder_nodes(db: Session, space_id: UUID, parent_id: int):
+    parent_node = (
+        db.query(Node)
+        .filter(
+            and_(
+                Node.space_id == space_id,
+                Node.id == parent_id,
+                Node.status == NodeStatus.ACTIVE
+            )
+        )
+    ).first()
+    if not parent_node or parent_node.type != NodeType.FOLDER:
+        return 0
+
+    return (
+        db.query(Node)
+        .filter(
+            and_(
+                Node.space_id == space_id,
+                Node.status == NodeStatus.ACTIVE,
+                Node.path.op("~")(literal(f'{parent_node.path}.*{{1}}')),
             )
         )
         .count()

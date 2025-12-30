@@ -7,7 +7,7 @@ from app.logic.node import (
     logic_user_satisfies_permission,
     logic_create_folder,
     logic_list_space_nodes,
-    logic_count_listed_space_nodes,
+    logic_count_listed_space_nodes, logic_list_folder_nodes, logic_count_listed_folder_nodes,
 )
 from app.logic.space import logic_resolve_default_space_id
 from app.models.node import SharePermission
@@ -89,7 +89,7 @@ def list_space_nodes(
         db, user.user_id, space_id, permission=SharePermission.READ
     ):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Can not list space"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Space not found"
         )
 
     nodes = logic_list_space_nodes(db, space_id, query)
@@ -102,10 +102,20 @@ def list_space_nodes(
 def list_folder_nodes(
     node_id: int,
     space_id: UUID = Depends(logic_resolve_default_space_id),
-    query: ListFolderNodes = Depends(database.get_session),
+    query: ListFolderNodes = Depends(),
+    user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    pass
+    if not logic_user_satisfies_permission(
+            db, user.user_id, space_id, node_id, permission=SharePermission.READ
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Space not found"
+        )
+
+    nodes = logic_list_folder_nodes(db, space_id, node_id, query)
+    total = logic_count_listed_folder_nodes(db, space_id, node_id)
+    return {"nodes": nodes, "total": total}
 
 
 @router.patch("/me/nodes/{node_id}")
