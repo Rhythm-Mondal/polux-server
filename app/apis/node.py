@@ -131,6 +131,7 @@ def move_node(
 def archive_node(
     node_id: int,
     space_id: UUID = Depends(resolve_default_space_id),
+    user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
     pass

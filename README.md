@@ -350,8 +350,8 @@ resposes:
 
 ### 3.6 Rename File/Folder
 ```
-PATCH /spaces/me/node/{node_id}
-PATCH /spaces/{space_id}/node/{node_id}
+PATCH /spaces/me/nodes/{node_id}
+PATCH /spaces/{space_id}/nodes/{node_id}
 
 body: {
     name: str
@@ -367,8 +367,8 @@ responses
 
 ### 3.7 Copy File/Folder
 ```
-PUT /spaces/me/node/{node_id}/copy
-PUT /spaces/{space_id}/node/{node_id}/copy
+PUT /spaces/me/nodes/{node_id}/copy
+PUT /spaces/{space_id}/nodes/{node_id}/copy
 
 body: {
     *overwrite: bool  [optional][unimplemented]
@@ -383,7 +383,10 @@ responses:
 401 Unauthorized
 403 Can not copy to this location
 404 Not found
+409 Destination is not a folder
+409 Destination folder is archived
 409 A file / folder with the same name already exists
+409 Archived file / folder can not be moved
 200 Ok
 
 ** It is assumed for folders all children are also copied
@@ -391,8 +394,8 @@ responses:
 
 ### 3.8 Move File/Folder
 ```
-PUT /spaces/me/node/{node_id}/move
-PUT /spaces/{space_id}/node/{node_id}/move
+PUT /spaces/me/nodes/{node_id}/move
+PUT /spaces/{space_id}/nodes/{node_id}/move
 
 body: {
     *overwrite: bool  [optional][unimplemented]
@@ -407,7 +410,10 @@ responses:
 403 Can not move from this location
 403 Can not move to this location
 404 Not found
+409 Destination is not a folder
+409 Destination folder is archived
 409 A file / folder with the same name already exists
+409 Archived file / folder can not be moved
 409 Can not move to ones children
 200 Ok
 
@@ -416,21 +422,22 @@ responses:
 
 ### 3.9 Archive File/Folder
 ```
-PATCH /spaces/me/node/{node_id}/archive
-PATCH /spaces/{space_id}/node/{node_id}/archive
+PATCH /spaces/me/nodes/{node_id}/archive
+PATCH /spaces/{space_id}/nodes/{node_id}/archive
 
 responses:
 400 Bad request
 401 Unauthorized
 403 Can not archive this file / folder
 404 Not found
+409 File / Folder already archived
 200 Ok
 ```
 
 ### 3.10 Delete File/Folder
 ```
-DELETE /spaces/me/node/{node_id}
-DELETE /spaces/{space_id}/node/{node_id}
+DELETE /spaces/me/nodes/{node_id}
+DELETE /spaces/{space_id}/nodes/{node_id}
 
 params: {
     recursive: bool
@@ -448,8 +455,8 @@ responses:
 
 ### 4.1 Share File/Folder
 ```
-PUT /spaces/me/node/{node_id}/shares
-PUT /spaces/{space_id}/node/{node_id}/shares
+PUT /spaces/me/nodes/{node_id}/shares
+PUT /spaces/{space_id}/nodes/{node_id}/shares
 
 body: {
     shares: [
@@ -471,8 +478,8 @@ responses:
 
 ### 4.2 List Shared Users
 ```
-GET /spaces/me/node/{node_id}/shares
-GET /spaces/{space_id}/node/{node_id}/shares
+GET /spaces/me/nodes/{node_id}/shares
+GET /spaces/{space_id}/nodes/{node_id}/shares
 
 params: {
     page: int
@@ -589,14 +596,16 @@ PATCH /spaces/{space_id}/nodes/{node_id}/restore
 
 body: {
     name: str       [optional][3-128 characters]
-    overwrite: bool [optional]
+    *overwrite: bool [optional][uninplemented]
 }
 
 responses:
 400 Bad request
 401 Unauthorized
 404 Not found
+409 File / Folder is not archived
 409 A file / folder with the same name exist in the restore location, rename or overwrite
+409 Parent folder is archived, restore parent first
 200 Ok
 ```
 
