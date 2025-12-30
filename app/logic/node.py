@@ -2,7 +2,7 @@ import logging
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import select, insert, update, and_, func, literal
+from sqlalchemy import select, insert, update, and_, func, literal, desc
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy_utils import Ltree
@@ -16,7 +16,7 @@ from app.models.node import (
     NodeStatus,
     NodeType,
 )
-from app.schemas.node import CreateFolder
+from app.schemas.node import CreateFolder, ListFolderNodes, ListSpaceNodes
 
 
 def user_satisfies_permission(
@@ -119,3 +119,64 @@ def create_space_folder(db: Session, user_id: UUID, space_id: UUID, body: Create
         logging.error(e)
         db.rollback()
         return None
+
+
+def list_user_space_nodes(db: Session, space_id: UUID, query: ListSpaceNodes):
+    statement = (
+        db.query(Node)
+        .filter(
+            and_(
+                Node.space_id == space_id,
+                Node.parent_id.is_(None),
+                Node.status == NodeStatus.ACTIVE,
+            )
+        )
+        .order_by(desc(Node.created_at))
+    )
+    if query.offset is not None:
+        statement = statement.offset(query.offset)
+    if query.limit is not None:
+        statement = statement.limit(query.limit)
+    db_nodes = statement.all()
+
+    # TODO: better implementation
+    def out_put_mapper(node: Node):
+        return {
+            "id": node.id,
+            "space_id": node.space_id,
+            "parent_id": node.parent_id,
+            "name": node.name,
+            "type": node.type,
+            "uploader_id": node.uploader_id,
+            "created_at": node.created_at,
+            "updated_at": node.updated_at,
+            "is_shared": False,
+            "can": {
+                "open": True,
+                "upload": node.type == NodeType.FOLDER,
+                "download": node.type == NodeType.FILE,
+                "rename": True,
+                "copy": True,
+                "move": True,
+                "paste": True,
+                "archive": True,
+                "delete": True,
+                "share": True,
+            },
+        }
+
+    return list(map(out_put_mapper, db_nodes))
+
+
+def count_listed_user_space_nodes(db: Session, space_id: UUID):
+    return (
+        db.query(Node)
+        .filter(
+            and_(
+                Node.space_id == space_id,
+                Node.parent_id.is_(None),
+                Node.status == NodeStatus.ACTIVE,
+            )
+        )
+        .count()
+    )

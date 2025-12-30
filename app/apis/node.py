@@ -3,7 +3,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.logic.node import user_satisfies_permission, create_space_folder
+from app.logic.node import (
+    user_satisfies_permission,
+    create_space_folder,
+    list_user_space_nodes,
+    count_listed_user_space_nodes,
+)
 from app.logic.space import resolve_default_space_id
 from app.models.node import SharePermission
 from app.schemas.common import Token
@@ -77,9 +82,19 @@ def get_node_metadata(
 def list_space_nodes(
     space_id: UUID = Depends(resolve_default_space_id),
     query: ListSpaceNodes = Depends(),
+    user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    pass
+    if not user_satisfies_permission(
+        db, user.user_id, space_id, permission=SharePermission.READ
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Can not list space"
+        )
+
+    nodes = list_user_space_nodes(db, space_id, query)
+    total = count_listed_user_space_nodes(db, space_id)
+    return {"nodes": nodes, "total": total}
 
 
 @router.get("/me/nodes/{node_id}/list", response_model=ListFolderNodesResponse)
