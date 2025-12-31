@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.logic.node import (
-    logic_user_satisfies_permission,
     logic_create_folder,
     logic_list_space_nodes,
     logic_count_listed_space_nodes, logic_list_folder_nodes, logic_count_listed_folder_nodes,
@@ -51,13 +50,6 @@ def create_folder(
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    if not logic_user_satisfies_permission(
-        db, user.user_id, space_id, body.parent_id, SharePermission.WRITE
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Can not create folder here"
-        )
-
     if not logic_create_folder(db, user.user_id, space_id, body):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create folder"
@@ -85,14 +77,7 @@ def list_space_nodes(
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    if not logic_user_satisfies_permission(
-        db, user.user_id, space_id, permission=SharePermission.READ
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Space not found"
-        )
-
-    nodes = logic_list_space_nodes(db, space_id, query)
+    nodes = logic_list_space_nodes(db, user.user_id, space_id, query)
     total = logic_count_listed_space_nodes(db, space_id)
     return {"nodes": nodes, "total": total}
 
@@ -106,14 +91,7 @@ def list_folder_nodes(
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    if not logic_user_satisfies_permission(
-            db, user.user_id, space_id, node_id, permission=SharePermission.READ
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Space not found"
-        )
-
-    nodes = logic_list_folder_nodes(db, space_id, node_id, query)
+    nodes = logic_list_folder_nodes(db, user.user_id, space_id, node_id, query)
     total = logic_count_listed_folder_nodes(db, space_id, node_id)
     return {"nodes": nodes, "total": total}
 
