@@ -19,7 +19,7 @@ from app.models.node import (
     NodeStatus,
     NodeType,
 )
-from app.models.share import SharePermission, NodeShare
+from app.models.share import SharePermission, NodeShare, SpaceShare
 from app.models.space import Space
 from app.schemas.node import CreateFolder, ListFolderNodes, ListSpaceNodes
 
@@ -52,8 +52,13 @@ def node_share_permission_list_query(user_id: UUID, space_id: UUID):
     )
 
 
-def space_share_permission_sub_query(user_id: UUID, space_id: UUID) -> Any:
-    pass
+def space_share_permission_query(user_id: UUID, space_id: UUID) -> Any:
+    return select(func.coalesce(func.max(SpaceShare.permission), 0)).where(
+        and_(
+            SpaceShare.user_id == user_id,
+            SpaceShare.space_id == space_id,
+        )
+    )
 
 
 def logic_get_space_and_node(
@@ -85,10 +90,8 @@ def logic_get_space_and_node(
 
 
 def logic_get_user_permission_on_space(db: Session, user_id: UUID, space_id: UUID):
-    # Unimplemented
-    # statement = space_share_permission_sub_query(user_id, space_id)
-    # return db.execute(statement).scalar()
-    return 0
+    statement = space_share_permission_query(user_id, space_id)
+    return db.execute(statement).scalar()
 
 
 def logic_get_user_effective_permission_on_node(
@@ -200,8 +203,7 @@ def logic_list_space_nodes(
     db_space, _ = logic_get_space_and_node(db, space_id)
     if (
         db_space.owner_id != user_id
-        and logic_get_user_permission_on_space(db, user_id, space_id)
-        < SharePermission.READ
+        and logic_get_user_max_permission(db, user_id, space_id) < SharePermission.READ
     ):
         raise HTTPException(status_code=404, detail="Space not found")
 
