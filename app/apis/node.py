@@ -11,7 +11,7 @@ from app.logic.node import (
     logic_count_listed_folder_nodes,
 )
 from app.logic.space import logic_resolve_default_space_id
-from app.models.node import SharePermission
+from app.models.share import SharePermission
 from app.schemas.common import Token
 from app.schemas.node import (
     UploadFile,
@@ -94,7 +94,7 @@ def list_folder_nodes(
     db: Session = Depends(database.get_session),
 ):
     nodes = logic_list_folder_nodes(db, user.user_id, space_id, node_id, query)
-    total = logic_count_listed_folder_nodes(db, space_id, node_id)
+    total = logic_count_listed_folder_nodes(db, user.user_id, space_id, node_id)
     return {"nodes": nodes, "total": total}
 
 

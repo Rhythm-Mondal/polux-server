@@ -5,56 +5,50 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy import (
     select,
-    insert,
-    update,
     and_,
     func,
     literal,
     desc,
-    text,
-    cast,
-    String,
 )
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 from sqlalchemy_utils import Ltree
 
 from app.models.node import (
-    SharePermission,
-    Space,
     Node,
-    NodeShare,
-    NodeShareExclusion,
     NodeStatus,
     NodeType,
 )
-from app.schemas.node import CreateFolder, ListFolderNodes, ListSpaceNodes, MoveNode
+from app.models.share import SharePermission, NodeShare
+from app.models.space import Space
+from app.schemas.node import CreateFolder, ListFolderNodes, ListSpaceNodes
 
 
-def node_share_permission_sub_query(user_id: UUID, space_id: UUID, path: str | Ltree):
+def node_share_permission_query(user_id: UUID, space_id: UUID, path: str | Ltree):
     return (
         select(func.coalesce(func.max(NodeShare.permission), 0))
         .join(
             Node,
             onclause=and_(
                 NodeShare.node_id == Node.id,
+                NodeShare.user_id == user_id,
                 Node.space_id == space_id,
                 Node.status == NodeStatus.ACTIVE,
             ),
         )
-        .outerjoin(
-            NodeShareExclusion,
-            onclause=and_(
-                NodeShareExclusion.share_id == NodeShare.id,
-                NodeShareExclusion.node_id == NodeShare.node_id,
-            ),
-        )
-        .where(
-            and_(
-                NodeShare.user_id == user_id,
-                Node.path.op("@>")(path),
-            )
-        )
+        .where(Node.path.op("@>")(path))
+    )
+
+
+def node_share_permission_list_query(user_id: UUID, space_id: UUID):
+    return select(NodeShare.permission, Node.path).join(
+        Node,
+        onclause=and_(
+            NodeShare.node_id == Node.id,
+            NodeShare.user_id == user_id,
+            Node.space_id == space_id,
+            Node.status == NodeStatus.ACTIVE,
+        ),
     )
 
 
@@ -103,7 +97,7 @@ def logic_get_user_effective_permission_on_node(
     if not node:
         return 0
 
-    statement = node_share_permission_sub_query(user_id, space_id, node.path)
+    statement = node_share_permission_query(user_id, space_id, node.path)
     return db.execute(statement).scalar()
 
 
@@ -246,7 +240,7 @@ def logic_list_space_nodes(
                 "download": node.type == NodeType.FILE,
                 "rename": True,
                 "copy": True,
-                "move": True,
+                "cut": True,
                 "paste": node.type == NodeType.FOLDER,
                 "archive": True,
                 "delete": db_space.owner_id == user_id,
@@ -279,25 +273,39 @@ def logic_list_folder_nodes(
     if parent_node.type != NodeType.FOLDER:
         return []
 
+    X = aliased(Node)
+    Y = aliased(node_share_permission_list_query(user_id, space_id).subquery())
+
+    if db_space.owner_id != user_id:
+        statement = (
+            select(X, func.max(Y.c.permission).label("permission"))
+            .outerjoin(Y, onclause=Y.c.path.op("@>")(X.path))
+            .where(Y.c.permission.isnot(None))
+        )
+    else:
+        statement = select(X, literal(SharePermission.MANAGE).label("permission"))
+
     statement = (
-        db.query(Node)
-        .filter(
+        statement.where(
             and_(
-                Node.space_id == space_id,
-                Node.status == NodeStatus.ACTIVE,
-                Node.path.op("~")(literal(f"{parent_node.path}.*{{1}}")),
+                X.status == NodeStatus.ACTIVE,
+                X.parent_id == parent_id,
+                X.space_id == space_id,
             )
         )
-        .order_by(Node.type, desc(Node.created_at))
+        .group_by(X.id)
+        .order_by(X.type, desc(X.created_at))
     )
     if query.offset is not None:
         statement = statement.offset(query.offset)
     if query.limit is not None:
         statement = statement.limit(query.limit)
-    db_nodes = statement.all()
+    db_nodes = db.execute(statement).all()
 
     # TODO: better implementation
-    def out_put_mapper(node: Node):
+    def out_put_mapper(item: tuple[Node, int]):
+        node, permission = item
+
         return {
             "id": node.id,
             "space_id": node.space_id,
@@ -307,38 +315,50 @@ def logic_list_folder_nodes(
             "uploader_id": node.uploader_id,
             "created_at": node.created_at,
             "updated_at": node.updated_at,
-            "is_shared": False,
+            "is_shared": db_space.owner_id != user_id,
             "can": {
-                "open": True,
-                "upload": node.type == NodeType.FOLDER,
-                "download": node.type == NodeType.FILE,
-                "rename": True,
-                "copy": True,
-                "move": True,
-                "paste": node.type == NodeType.FOLDER,
-                "archive": True,
+                "open": permission >= SharePermission.READ,
+                "upload": node.type == NodeType.FOLDER
+                and permission >= SharePermission.WRITE,
+                "download": node.type == NodeType.FILE
+                and permission >= SharePermission.READ,
+                "rename": permission >= SharePermission.WRITE,
+                "copy": permission >= SharePermission.READ,
+                "cut": permission >= SharePermission.WRITE,
+                "paste": node.type == NodeType.FOLDER
+                and permission >= SharePermission.WRITE,
+                "archive": permission >= SharePermission.MANAGE,
                 "delete": db_space.owner_id == user_id,
-                "share": True,
+                "share": permission >= SharePermission.MANAGE,
             },
         }
 
     return list(map(out_put_mapper, db_nodes))
 
 
-def logic_count_listed_folder_nodes(db: Session, space_id: UUID, parent_id: int):
+def logic_count_listed_folder_nodes(
+    db: Session, user_id, space_id: UUID, parent_id: int
+):
     db_space, parent_node = logic_get_space_and_node(db, space_id, parent_id)
 
     if parent_node.type != NodeType.FOLDER:
         return 0
 
-    return (
-        db.query(Node)
-        .filter(
-            and_(
-                Node.space_id == space_id,
-                Node.status == NodeStatus.ACTIVE,
-                Node.path.op("~")(literal(f"{parent_node.path}.*{{1}}")),
-            )
+    X = aliased(Node)
+    Y = aliased(node_share_permission_list_query(user_id, space_id).subquery())
+
+    statement = select(func.count(X.id))
+
+    if db_space.owner_id != user_id:
+        statement = statement.outerjoin(Y, onclause=Y.c.path.op("@>")(X.path)).where(
+            Y.c.permission.isnot(None)
         )
-        .count()
-    )
+
+    statement = statement.where(
+        and_(
+            X.status == NodeStatus.ACTIVE,
+            X.parent_id == parent_id,
+            X.space_id == space_id,
+        )
+    ).group_by(X.id)
+    return db.execute(statement).scalar()

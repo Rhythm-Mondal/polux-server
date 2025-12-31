@@ -5,7 +5,8 @@ from uuid import UUID
 from sqlalchemy import select, and_, func, desc
 from sqlalchemy.orm import Session
 
-from app.models.node import Node, NodeShare, NodeStatus, NodeType, SharePermission
+from app.models.node import Node, NodeStatus, NodeType
+from app.models.share import SharePermission, NodeShare
 from app.schemas.share import ListSharedNodes
 
 
@@ -29,6 +30,7 @@ def logic_list_shared_nodes(db: Session, user_id: UUID, query: ListSharedNodes):
 
     db_nodes = db.execute(statement).all()
 
+    # TODO: better implementation
     def out_put_mapper(item: tuple[Node, int, UUID, datetime]):
         node, permission, sharer_id, shared_at = item
         return {
@@ -51,7 +53,7 @@ def logic_list_shared_nodes(db: Session, user_id: UUID, query: ListSharedNodes):
                 and permission >= SharePermission.READ,
                 "rename": permission >= SharePermission.WRITE,
                 "copy": permission >= SharePermission.READ,
-                "move": permission >= SharePermission.WRITE,
+                "cut": permission >= SharePermission.WRITE,
                 "paste": node.type == NodeType.FOLDER
                 and permission >= SharePermission.WRITE,
                 "archive": permission >= SharePermission.MANAGE,

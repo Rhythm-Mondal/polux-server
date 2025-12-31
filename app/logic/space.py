@@ -7,7 +7,8 @@ from sqlalchemy import update, or_, and_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models.node import Space, Node
+from app.models.node import Node
+from app.models.space import Space
 from app.schemas.common import Token
 from app.schemas.space import CreateSpace
 from app.utils.auth import get_auth_user
