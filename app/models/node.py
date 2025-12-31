@@ -78,6 +78,7 @@ class Node(Base):
             "type",
             unique=True,
             postgresql_where=(Column("status") == str(NodeStatus.ACTIVE)),
+            postgresql_nulls_not_distinct=True,
         ),
     )
 

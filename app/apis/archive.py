@@ -1,8 +1,9 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.logic.archive import logic_restore_node
 from app.logic.space import logic_resolve_default_space_id
 from app.schemas.archive import ListArchiveResponse, ListArchive, RestoreNode
 from app.schemas.common import Token
@@ -34,4 +35,9 @@ def restore_node(
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    pass
+    result = logic_restore_node(db, user.user_id, space_id, node_id, body)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to restore node"
+        )
+    return {"message": "Successfully restored node"}

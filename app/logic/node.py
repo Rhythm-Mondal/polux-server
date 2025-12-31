@@ -1,9 +1,7 @@
 import logging
-from http import HTTPStatus
-from typing import Any
 from uuid import UUID
 
-from fastapi import HTTPException, status, logger
+from fastapi import HTTPException, status
 from sqlalchemy import (
     select,
     and_,
@@ -16,14 +14,17 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy_utils import Ltree
 
+from app.logic.common import (
+    logic_get_space_and_node,
+    node_share_permission_list_query,
+    logic_get_user_max_permission,
+)
 from app.models.node import (
     Node,
     NodeStatus,
     NodeType,
 )
-from app.models.share import SharePermission, NodeShare, SpaceShare
-from app.models.space import Space
-from app.schemas.archive import ListArchiveNode
+from app.models.share import SharePermission
 from app.schemas.node import (
     CreateFolder,
     ListFolderNodes,
@@ -31,111 +32,6 @@ from app.schemas.node import (
     RenameNode,
     DeleteNode,
 )
-
-
-def node_share_permission_query(user_id: UUID, space_id: UUID, path: str | Ltree):
-    return (
-        select(func.coalesce(func.max(NodeShare.permission), 0))
-        .join(
-            Node,
-            onclause=and_(
-                NodeShare.node_id == Node.id,
-                NodeShare.user_id == user_id,
-                Node.space_id == space_id,
-                Node.status != NodeStatus.DELETED,
-            ),
-        )
-        .where(Node.path.op("@>")(path))
-    )
-
-
-def node_share_permission_list_query(user_id: UUID, space_id: UUID):
-    return select(NodeShare.permission, Node.path).join(
-        Node,
-        onclause=and_(
-            NodeShare.node_id == Node.id,
-            NodeShare.user_id == user_id,
-            Node.space_id == space_id,
-            Node.status != NodeStatus.DELETED,
-        ),
-    )
-
-
-def space_share_permission_query(user_id: UUID, space_id: UUID) -> Any:
-    return select(func.coalesce(func.max(SpaceShare.permission), 0)).where(
-        and_(
-            SpaceShare.user_id == user_id,
-            SpaceShare.space_id == space_id,
-        )
-    )
-
-
-def logic_get_space_and_node(
-    db: Session, space_id: UUID, node_id: int = None
-) -> tuple[Space, Node | None]:
-    db_space = db.query(Space).filter(Space.id == space_id).first()
-    if not db_space:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Space not found"
-        )
-
-    db_node = (
-        db.query(Node)
-        .filter(
-            and_(
-                Node.space_id == space_id,
-                Node.id == node_id,
-                Node.status != NodeStatus.DELETED,
-            )
-        )
-        .first()
-    )
-    if node_id is not None and not db_node:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Space not found"
-        )
-
-    return db_space, db_node
-
-
-def logic_get_user_permission_on_space(db: Session, user_id: UUID, space_id: UUID):
-    statement = space_share_permission_query(user_id, space_id)
-    return db.execute(statement).scalar()
-
-
-def logic_get_user_effective_permission_on_node(
-    db: Session, user_id: UUID, space_id: UUID, node: Node | None = None
-):
-    if not node:
-        return 0
-
-    statement = node_share_permission_query(user_id, space_id, node.path)
-    return db.execute(statement).scalar()
-
-
-def logic_get_user_max_permission(
-    db: Session, user_id: UUID, space_id: UUID, node: Node = None
-):
-    space_permission = logic_get_user_permission_on_space(db, user_id, space_id)
-    node_permission = logic_get_user_effective_permission_on_node(
-        db, user_id, space_id, node
-    )
-    return max(space_permission, node_permission)
-
-
-def logic_user_satisfies_permission(
-    db: Session,
-    user_id: UUID,
-    space_id: UUID,
-    node_id: int | None = None,
-    permission: int = SharePermission.READ,
-):
-    db_space, db_node = logic_get_space_and_node(db, space_id, node_id)
-
-    if db_space.owner_id == user_id:
-        return True
-
-    return logic_get_user_max_permission(db, user_id, space_id, node_id) >= permission
 
 
 def logic_create_folder(db: Session, user_id: UUID, space_id: UUID, body: CreateFolder):
@@ -372,7 +268,7 @@ def logic_count_listed_folder_nodes(
             X.space_id == space_id,
         )
     ).group_by(X.id)
-    return db.execute(statement).scalar()
+    return db.execute(statement).scalar() or 0
 
 
 def logic_rename_node(
@@ -416,16 +312,28 @@ def logic_archive_node(db: Session, user_id, space_id: UUID, node_id: int):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Cannot rename this node"
         )
-    if db_node.type != NodeStatus.ACTIVE:
+
+    if db_node.status != NodeStatus.ACTIVE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"{db_node.type.capitalize()} is already archived",
         )
 
     try:
-        db_node.status = NodeStatus.ARCHIVED
+        statement = (
+            update(Node)
+            .where(
+                and_(
+                    Node.path.op("<@")(db_node.path),
+                    Node.space_id == space_id,
+                )
+            )
+            .values(status=NodeStatus.ARCHIVED)
+            .returning(Node.id)
+        )
+        ret = db.execute(statement).all()
         db.commit()
-        return db_node
+        return ret
     except Exception as e:
         logging.error(e)
         db.rollback()
@@ -456,15 +364,16 @@ def logic_delete_node(
         )
 
     try:
-        with db.begin():
-            statement = (
-                update(Node)
-                .where(Node.path.op("<@")(db_node.path))
-                .values(status=NodeStatus.DELETED)
-                .returning()
-            )
-            ret = db.execute(statement).scalar().all()
-            return ret
+        statement = (
+            update(Node)
+            .where(Node.path.op("<@")(db_node.path))
+            .values(status=NodeStatus.DELETED)
+            .returning(Node.id)
+        )
+        ret = db.execute(statement).all()
+        db.commit()
+        return ret
     except Exception as e:
         logging.error(e)
+        db.rollback()
         return None
