@@ -132,6 +132,8 @@ class NodeShare(Base):
     node_id = Column(Integer, ForeignKey("nodes.id"), nullable=False, index=True)
     user_id = Column(UUID, ForeignKey("users.id"), nullable=False, index=True)
     permission = Column(Integer, nullable=False)
+    sharer_id = Column(UUID, ForeignKey("users.id"), nullable=False, index=True)
+    shared_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     __table_args__ = (
         CheckConstraint("permission in (10, 20, 30)"),

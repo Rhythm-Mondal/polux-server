@@ -1,9 +1,10 @@
 import enum
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
 from app.schemas.common import CommonPaginatedQuery
-from app.schemas.node import ListNodesResponse
+from app.schemas.node import ListNodesResponse, ListNode
 
 
 class DisplayPermission(enum.StrEnum):
@@ -40,7 +41,11 @@ class ListSharedNodes(CommonPaginatedQuery):
     """
 
 
-class ListSharedNodesResponse(ListNodesResponse):
-    """
-    copy
-    """
+class ListShareNode(ListNode):
+    sharer_id: UUID
+    shared_at: datetime
+
+
+class ListSharedNodesResponse(BaseModel):
+    total: int
+    nodes: list[ListShareNode]

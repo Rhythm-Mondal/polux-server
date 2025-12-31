@@ -507,7 +507,7 @@ responses:
 
 ### 4.3 List Shared Files/Folders
 ```
-GET /spaces/shared/nodes
+GET /spaces/shares/list
 
 params: {
     page: int

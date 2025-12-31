@@ -3,7 +3,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.logic.share import logic_list_shared_nodes, logic_count_listed_shared_nodes
 from app.logic.space import logic_resolve_default_space_id
+from app.schemas.common import Token
 from app.schemas.share import (
     ListSharedNodesResponse,
     ShareNode,
@@ -12,6 +14,7 @@ from app.schemas.share import (
     ListShares,
 )
 from app.utils import database
+from app.utils.auth import get_auth_user
 
 router = APIRouter(prefix="/spaces")
 
@@ -37,8 +40,12 @@ def list_shared_with_users(
     pass
 
 
-@router.get("/shared/nodes", response_model=ListSharedNodesResponse)
+@router.get("/shares/list", response_model=ListSharedNodesResponse)
 def list_shared_nodes(
-    query: ListSharedNodes = Depends(), db: Session = Depends(database.get_session)
+    query: ListSharedNodes = Depends(),
+    user: Token = Depends(get_auth_user),
+    db: Session = Depends(database.get_session),
 ):
-    pass
+    nodes = logic_list_shared_nodes(db, user.user_id, query)
+    total = logic_count_listed_shared_nodes(db, user.user_id)
+    return {"nodes": nodes, "total": total}

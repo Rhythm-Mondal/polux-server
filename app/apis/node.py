@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 from app.logic.node import (
     logic_create_folder,
     logic_list_space_nodes,
-    logic_count_listed_space_nodes, logic_list_folder_nodes, logic_count_listed_folder_nodes,
+    logic_count_listed_space_nodes,
+    logic_list_folder_nodes,
+    logic_count_listed_folder_nodes,
 )
 from app.logic.space import logic_resolve_default_space_id
 from app.models.node import SharePermission
