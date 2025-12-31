@@ -9,6 +9,9 @@ from app.logic.node import (
     logic_count_listed_space_nodes,
     logic_list_folder_nodes,
     logic_count_listed_folder_nodes,
+    logic_rename_node,
+    logic_archive_node,
+    logic_delete_node,
 )
 from app.logic.space import logic_resolve_default_space_id
 from app.models.share import SharePermission
@@ -104,9 +107,15 @@ def rename_node(
     body: RenameNode,
     node_id: int,
     space_id: UUID = Depends(logic_resolve_default_space_id),
+    user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    pass
+    result = logic_rename_node(db, user.user_id, space_id, node_id, body)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to rename node"
+        )
+    return {"message": "Node renamed successfully"}
 
 
 @router.put("/me/nodes/{node_id}/copy")
@@ -139,7 +148,12 @@ def archive_node(
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    pass
+    result = logic_archive_node(db, user.user_id, space_id, node_id)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to archive node"
+        )
+    return {"message": "Node archived successfully"}
 
 
 @router.delete("/me/nodes/{node_id}")
@@ -148,6 +162,12 @@ def delete_node(
     node_id: int,
     space_id: UUID = Depends(logic_resolve_default_space_id),
     query: DeleteNode = Depends(),
+    user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    pass
+    result = logic_delete_node(db, user.user_id, space_id, node_id, query)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete node"
+        )
+    return {"message": "Node deleted successfully"}

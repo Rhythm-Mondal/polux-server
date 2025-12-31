@@ -8,7 +8,7 @@ class ArchiveNodeCan(BaseModel):
     delete: bool = False
 
 
-class ArchiveNode(Node):
+class ListArchiveNode(Node):
     can: ArchiveNodeCan
 
 
@@ -18,7 +18,7 @@ class ListArchive(CommonPaginatedQuery):
 
 class ListArchiveResponse(BaseModel):
     total: int
-    nodes: list[ArchiveNode]
+    nodes: list[ListArchiveNode]
 
 
 class RestoreNode(BaseModel):

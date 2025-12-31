@@ -149,4 +149,4 @@ def logic_delete_space(
     except Exception as e:
         logging.error(e)
         db.rollback()
-        raise None
+        return None

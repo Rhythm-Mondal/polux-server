@@ -1,14 +1,16 @@
 import logging
+from http import HTTPStatus
 from typing import Any
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, logger
 from sqlalchemy import (
     select,
     and_,
     func,
     literal,
     desc,
+    update,
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
@@ -21,7 +23,14 @@ from app.models.node import (
 )
 from app.models.share import SharePermission, NodeShare, SpaceShare
 from app.models.space import Space
-from app.schemas.node import CreateFolder, ListFolderNodes, ListSpaceNodes
+from app.schemas.archive import ListArchiveNode
+from app.schemas.node import (
+    CreateFolder,
+    ListFolderNodes,
+    ListSpaceNodes,
+    RenameNode,
+    DeleteNode,
+)
 
 
 def node_share_permission_query(user_id: UUID, space_id: UUID, path: str | Ltree):
@@ -33,7 +42,7 @@ def node_share_permission_query(user_id: UUID, space_id: UUID, path: str | Ltree
                 NodeShare.node_id == Node.id,
                 NodeShare.user_id == user_id,
                 Node.space_id == space_id,
-                Node.status == NodeStatus.ACTIVE,
+                Node.status != NodeStatus.DELETED,
             ),
         )
         .where(Node.path.op("@>")(path))
@@ -47,7 +56,7 @@ def node_share_permission_list_query(user_id: UUID, space_id: UUID):
             NodeShare.node_id == Node.id,
             NodeShare.user_id == user_id,
             Node.space_id == space_id,
-            Node.status == NodeStatus.ACTIVE,
+            Node.status != NodeStatus.DELETED,
         ),
     )
 
@@ -329,7 +338,7 @@ def logic_list_folder_nodes(
                 "cut": permission >= SharePermission.WRITE,
                 "paste": node.type == NodeType.FOLDER
                 and permission >= SharePermission.WRITE,
-                "archive": permission >= SharePermission.MANAGE,
+                "archive": permission >= SharePermission.WRITE,
                 "delete": db_space.owner_id == user_id,
                 "share": permission >= SharePermission.MANAGE,
             },
@@ -364,3 +373,98 @@ def logic_count_listed_folder_nodes(
         )
     ).group_by(X.id)
     return db.execute(statement).scalar()
+
+
+def logic_rename_node(
+    db: Session, user_id, space_id: UUID, node_id: int, body: RenameNode
+):
+    db_space, db_node = logic_get_space_and_node(db, space_id, node_id)
+    if (
+        db_space.owner_id != user_id
+        and logic_get_user_max_permission(db, user_id, space_id, db_node)
+        < SharePermission.WRITE
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Cannot rename this node"
+        )
+    if db_node.type != NodeStatus.ACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"{db_node.type.capitalize()} is archived",
+        )
+
+    try:
+        db_node.name = body.name
+        db.commit()
+        return db_node
+    except IntegrityError as e:
+        logging.error(e)
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A {db_node.type} with the same name already exists",
+        )
+
+
+def logic_archive_node(db: Session, user_id, space_id: UUID, node_id: int):
+    db_space, db_node = logic_get_space_and_node(db, space_id, node_id)
+    if (
+        db_space.owner_id != user_id
+        and logic_get_user_max_permission(db, user_id, space_id, db_node)
+        < SharePermission.WRITE
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Cannot rename this node"
+        )
+    if db_node.type != NodeStatus.ACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"{db_node.type.capitalize()} is already archived",
+        )
+
+    try:
+        db_node.status = NodeStatus.ARCHIVED
+        db.commit()
+        return db_node
+    except Exception as e:
+        logging.error(e)
+        db.rollback()
+        return None
+
+
+def logic_delete_node(
+    db: Session, user_id, space_id: UUID, node_id: int, query: DeleteNode
+):
+    db_space, db_node = logic_get_space_and_node(db, space_id, node_id)
+    if db_space.owner_id != user_id:
+        permission = logic_get_user_max_permission(db, user_id, space_id, db_node)
+        status_code = (
+            status.HTTP_403_FORBIDDEN if permission > 0 else status.HTTP_404_NOT_FOUND
+        )
+        details = (
+            f"Only owners can delete {db_node.type}s"
+            if permission > 0
+            else "Node not found"
+        )
+        raise HTTPException(status_code=status_code, detail=details)
+
+    total = db.query(Node).filter(Node.path.op("<@")(db_node.path)).count()
+    if total > 1 and not query.recursive:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"This folder contains content do you wish to delete them as well?",
+        )
+
+    try:
+        with db.begin():
+            statement = (
+                update(Node)
+                .where(Node.path.op("<@")(db_node.path))
+                .values(status=NodeStatus.DELETED)
+                .returning()
+            )
+            ret = db.execute(statement).scalar().all()
+            return ret
+    except Exception as e:
+        logging.error(e)
+        return None
