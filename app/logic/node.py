@@ -20,6 +20,9 @@ from app.logic.common import (
     logic_get_user_max_permission,
     logic_node_to_output_dict,
     logic_node_can_general,
+    logic_validate_user_operation_on_node,
+    logic_get_user_permission_on_space,
+    logic_get_user_effective_permission_on_node,
 )
 from app.models.node import (
     Node,
@@ -27,12 +30,14 @@ from app.models.node import (
     NodeType,
 )
 from app.models.share import SharePermission
+from app.models.space import Space
 from app.schemas.node import (
     CreateFolder,
     ListFolderNodes,
     ListSpaceNodes,
     RenameNode,
     DeleteNode,
+    MoveNode,
 )
 
 
@@ -337,3 +342,110 @@ def logic_delete_node(
         logging.error(e)
         db.rollback()
         return None
+
+
+def logic_resolve_move_permission(
+    db: Session,
+    user_id: UUID,
+    space_id: UUID,
+    src_node_id: int,
+    dst_node_id: int | None = None,
+):
+    db_space = db.query(Space).filter(Space.id == space_id).first()
+    if not db_space:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Space not found"
+        )
+
+    src_node = (
+        db.query(Node)
+        .filter(and_(Node.space_id == space_id, Node.id == src_node_id))
+        .first()
+    )
+    dst_node = (
+        db.query(Node)
+        .filter(and_(Node.space_id == space_id, Node.id == dst_node_id))
+        .first()
+    )
+
+    if not src_node:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Source not found"
+        )
+
+    if not dst_node and dst_node_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Destination not found"
+        )
+
+    if dst_node and dst_node.type != NodeType.FOLDER:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Destination is not a folder"
+        )
+
+    if db_space.owner_id == user_id:
+        return db_space, src_node, dst_node
+
+    space_permission = logic_get_user_permission_on_space(db, user_id, space_id)
+    src_node_permission = logic_get_user_effective_permission_on_node(
+        db, user_id, space_id, src_node
+    )
+    dst_node_permission = logic_get_user_effective_permission_on_node(
+        db, user_id, space_id, dst_node
+    )
+
+    if max(space_permission, src_node_permission) < SharePermission.WRITE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"You not have permission to move this {src_node.type}",
+        )
+
+    if max(space_permission, dst_node_permission) < SharePermission.WRITE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"You not have permission to move to this {src_node.type}",
+        )
+
+    return db_space, src_node, dst_node
+
+
+def logic_move_node(
+    db: Session, user_id: UUID, space_id: UUID, node_id: int, body: MoveNode
+):
+    db_space, db_src, db_dst = logic_resolve_move_permission(
+        db, user_id, space_id, node_id, body.parent_id
+    )
+
+    old_path = db_src.path
+    new_path = (
+        Ltree(f"{db_dst.path}.{db_src.id}") if body.parent_id else Ltree(db_src.id)
+    )
+
+    try:
+        db_src.path = new_path
+        db_src.parent_id = body.parent_id
+        db_src.name = body.name
+
+        statement = (
+            update(Node)
+            .where(
+                and_(
+                    Node.path.op("<@")(old_path),
+                    Node.id != node_id,
+                )
+            )
+            .values(
+                path=new_path + func.subpath(Node.path, func.nlevel(old_path), None)
+            )
+            .returning(Node.id)
+        )
+        ret = db.execute(statement).all()
+        db.commit()
+        return ret
+    except IntegrityError as e:
+        logging.error(e)
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A {db_src.type} with same name already exists at destination rename this {db_src.type}?",
+        )

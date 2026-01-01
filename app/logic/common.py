@@ -1,11 +1,10 @@
 from typing import Any
 from uuid import UUID
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from sqlalchemy import and_, select, func
 from sqlalchemy.orm import Session
 from sqlalchemy_utils import Ltree
-from starlette import status
 
 from app.models.node import Node, NodeStatus, NodeType
 from app.models.share import NodeShare, SpaceShare, SharePermission

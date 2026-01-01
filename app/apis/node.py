@@ -12,6 +12,7 @@ from app.logic.node import (
     logic_rename_node,
     logic_archive_node,
     logic_delete_node,
+    logic_move_node,
 )
 from app.logic.space import logic_resolve_default_space_id
 from app.models.share import SharePermission
@@ -44,7 +45,7 @@ def upload_files(
     space_id: UUID = Depends(logic_resolve_default_space_id),
     db: Session = Depends(database.get_session),
 ):
-    pass
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unimplemented")
 
 
 @router.post("/me/nodes/folders")
@@ -71,7 +72,7 @@ def get_node_metadata(
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    pass
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unimplemented")
 
 
 @router.get("/me/nodes", response_model=ListSpaceNodesResponse)
@@ -135,9 +136,16 @@ def move_node(
     node_id: int,
     body: MoveNode,
     space_id: UUID = Depends(logic_resolve_default_space_id),
+    user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    pass
+    # TODO: test
+    result = logic_move_node(db, user.user_id, space_id, node_id, body)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to move node"
+        )
+    return {"message": "Node moved successfully"}
 
 
 @router.patch("/me/nodes/{node_id}/archive")

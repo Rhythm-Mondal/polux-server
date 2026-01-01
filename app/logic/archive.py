@@ -131,7 +131,7 @@ def logic_restore_node(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Overwrite is unimplemented",
             )
-        # db.commit()
+
         statement = (
             update(Node)
             .where(
