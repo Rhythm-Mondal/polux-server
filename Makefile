@@ -92,6 +92,8 @@ db-setup:
 	fi; \
 	echo "Granting all privileges on database $$DB_NAME to $$DB_USER..."; \
 	sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $$DB_NAME TO $$DB_USER;"
+	echo "Creating extension LTREE database $$DB_NAME"; \
+	sudo -u postgres $$DB_NAME -c "CREATE EXTENSION IF NOT EXISTS ltree;"
 
 db-login:
 	psql postgresql://$(DB_USER):$(DB_PWD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)

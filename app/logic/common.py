@@ -7,9 +7,41 @@ from sqlalchemy.orm import Session
 from sqlalchemy_utils import Ltree
 from starlette import status
 
-from app.models.node import Node, NodeStatus
+from app.models.node import Node, NodeStatus, NodeType
 from app.models.share import NodeShare, SpaceShare, SharePermission
 from app.models.space import Space
+
+
+def logic_node_to_output_dict(node: Node):
+    return {
+        "id": node.id,
+        "space_id": node.space_id,
+        "parent_id": node.parent_id,
+        "name": node.name,
+        "type": node.type,
+        "uploader_id": node.uploader_id,
+        "created_at": node.created_at,
+        "updated_at": node.updated_at,
+    }
+
+
+def logic_node_can_general(node: Node, permission: int, is_owner: bool):
+    return {
+        "open": permission >= SharePermission.READ,
+        "upload": node.type == NodeType.FOLDER and permission >= SharePermission.WRITE,
+        "download": node.type == NodeType.FILE and permission >= SharePermission.READ,
+        "rename": permission >= SharePermission.WRITE,
+        "copy": permission >= SharePermission.READ,
+        "cut": permission >= SharePermission.WRITE,
+        "paste": node.type == NodeType.FOLDER and permission >= SharePermission.WRITE,
+        "archive": permission >= SharePermission.WRITE,
+        "delete": is_owner,
+        "share": permission >= SharePermission.MANAGE,
+    }
+
+
+def logic_node_can_archive(node: Node, permission: int, is_owner: bool):
+    return {"restore": permission >= SharePermission.MANAGE, "delete": is_owner}
 
 
 def logic_get_space_and_node(

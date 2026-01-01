@@ -18,6 +18,8 @@ from app.logic.common import (
     logic_get_space_and_node,
     node_share_permission_list_query,
     logic_get_user_max_permission,
+    logic_node_to_output_dict,
+    logic_node_can_general,
 )
 from app.models.node import (
     Node,
@@ -117,8 +119,8 @@ def logic_list_space_nodes(
         .filter(
             and_(
                 Node.space_id == space_id,
+                Node.parent_id.is_(None),
                 Node.status == NodeStatus.ACTIVE,
-                func.nlevel(Node.path) == 1,
             )
         )
         .order_by(Node.type, desc(Node.created_at))
@@ -129,33 +131,14 @@ def logic_list_space_nodes(
         statement = statement.limit(query.limit)
     db_nodes = statement.all()
 
-    # TODO: better implementation
-    def out_put_mapper(node: Node):
-        return {
-            "id": node.id,
-            "space_id": node.space_id,
-            "parent_id": node.parent_id,
-            "name": node.name,
-            "type": node.type,
-            "uploader_id": node.uploader_id,
-            "created_at": node.created_at,
-            "updated_at": node.updated_at,
-            "is_shared": False,
-            "can": {
-                "open": True,
-                "upload": node.type == NodeType.FOLDER,
-                "download": node.type == NodeType.FILE,
-                "rename": True,
-                "copy": True,
-                "cut": True,
-                "paste": node.type == NodeType.FOLDER,
-                "archive": True,
-                "delete": db_space.owner_id == user_id,
-                "share": True,
-            },
-        }
+    def output_mapper(node: Node):
+        out = logic_node_to_output_dict(node)
+        can = logic_node_can_general(node, SharePermission.MANAGE, True)
+        out["can"] = can
+        out["is_shared"] = False
+        return out
 
-    return list(map(out_put_mapper, db_nodes))
+    return list(map(output_mapper, db_nodes))
 
 
 def logic_count_listed_space_nodes(db: Session, space_id: UUID):
@@ -209,38 +192,15 @@ def logic_list_folder_nodes(
         statement = statement.limit(query.limit)
     db_nodes = db.execute(statement).all()
 
-    # TODO: better implementation
-    def out_put_mapper(item: tuple[Node, int]):
+    def output_mapper(item: tuple[Node, int]):
         node, permission = item
+        out = logic_node_to_output_dict(node)
+        can = logic_node_can_general(node, permission, db_space.owner_id == user_id)
+        out["can"] = can
+        out["is_shared"] = db_space.owner_id != user_id  # TODO: needs better logic
+        return out
 
-        return {
-            "id": node.id,
-            "space_id": node.space_id,
-            "parent_id": node.parent_id,
-            "name": node.name,
-            "type": node.type,
-            "uploader_id": node.uploader_id,
-            "created_at": node.created_at,
-            "updated_at": node.updated_at,
-            "is_shared": db_space.owner_id != user_id,
-            "can": {
-                "open": permission >= SharePermission.READ,
-                "upload": node.type == NodeType.FOLDER
-                and permission >= SharePermission.WRITE,
-                "download": node.type == NodeType.FILE
-                and permission >= SharePermission.READ,
-                "rename": permission >= SharePermission.WRITE,
-                "copy": permission >= SharePermission.READ,
-                "cut": permission >= SharePermission.WRITE,
-                "paste": node.type == NodeType.FOLDER
-                and permission >= SharePermission.WRITE,
-                "archive": permission >= SharePermission.WRITE,
-                "delete": db_space.owner_id == user_id,
-                "share": permission >= SharePermission.MANAGE,
-            },
-        }
-
-    return list(map(out_put_mapper, db_nodes))
+    return list(map(output_mapper, db_nodes))
 
 
 def logic_count_listed_folder_nodes(

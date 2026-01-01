@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import select, and_, func, desc
 from sqlalchemy.orm import Session
 
+from app.logic.common import logic_node_to_output_dict, logic_node_can_general
 from app.models.node import Node, NodeStatus, NodeType
 from app.models.share import SharePermission, NodeShare
 from app.schemas.share import ListSharedNodes
@@ -30,39 +31,17 @@ def logic_list_shared_nodes(db: Session, user_id: UUID, query: ListSharedNodes):
 
     db_nodes = db.execute(statement).all()
 
-    # TODO: better implementation
-    def out_put_mapper(item: tuple[Node, int, UUID, datetime]):
+    def output_mapper(item: tuple[Node, int, UUID, datetime]):
         node, permission, sharer_id, shared_at = item
-        return {
-            "id": node.id,
-            "space_id": node.space_id,
-            "parent_id": node.parent_id,
-            "name": node.name,
-            "type": node.type,
-            "uploader_id": node.uploader_id,
-            "created_at": node.created_at,
-            "updated_at": node.updated_at,
-            "is_shared": True,
-            "sharer_id": sharer_id,
-            "shared_at": shared_at,
-            "can": {
-                "open": permission >= SharePermission.READ,
-                "upload": node.type == NodeType.FOLDER
-                and permission >= SharePermission.WRITE,
-                "download": node.type == NodeType.FILE
-                and permission >= SharePermission.READ,
-                "rename": permission >= SharePermission.WRITE,
-                "copy": permission >= SharePermission.READ,
-                "cut": permission >= SharePermission.WRITE,
-                "paste": node.type == NodeType.FOLDER
-                and permission >= SharePermission.WRITE,
-                "archive": permission >= SharePermission.MANAGE,
-                "delete": False,
-                "share": permission >= SharePermission.MANAGE,
-            },
-        }
+        out = logic_node_to_output_dict(node)
+        can = logic_node_can_general(node, permission, False)
+        out["can"] = can
+        out["is_shared"] = True
+        out["sharer_id"] = sharer_id
+        out["shared_at"] = shared_at
+        return out
 
-    return list(map(out_put_mapper, db_nodes))
+    return list(map(output_mapper, db_nodes))
 
 
 def logic_count_listed_shared_nodes(db: Session, user_id: UUID):

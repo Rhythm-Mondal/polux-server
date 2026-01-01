@@ -13,7 +13,7 @@ class ListArchiveNode(Node):
 
 
 class ListArchive(CommonPaginatedQuery):
-    node_id: int = None
+    node_id: int | None = None
 
 
 class ListArchiveResponse(BaseModel):

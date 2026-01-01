@@ -21,6 +21,7 @@ Then run the following make command
 make db-setup
 ```
 This will create a db and role for the app to access on you locally install postgres. The database-name, role-name and role password will depend on the `.env` file. You are free to modify this file.
+**Will require _sudo_ from user**
 
 # run polux-server
 To run this project simply run the following command
