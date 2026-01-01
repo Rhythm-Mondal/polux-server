@@ -36,16 +36,13 @@ def logic_list_archive(db: Session, user_id: UUID, space_id: UUID, query: ListAr
     L = aliased(Node)
     R = aliased(Node)
 
+    statement = select(L)
     if query.node_id is None:
-        statement = (
-            select(L, R.status.label("parent_status"))
-            .outerjoin(
-                R, onclause=and_(L.parent_id == R.id, R.status == NodeStatus.ACTIVE)
-            )
-            .where(or_(R.status == NodeStatus.ACTIVE, L.parent_id.is_(None)))
-        )
+        statement = statement.outerjoin(
+            R, onclause=and_(L.parent_id == R.id, R.status == NodeStatus.ACTIVE)
+        ).where(or_(R.status == NodeStatus.ACTIVE, L.parent_id.is_(None)))
     else:
-        statement = select(L).where(L.parent_id == query.node_id)
+        statement = statement.where(L.parent_id == query.node_id)
     statement = statement.where(
         and_(L.status == NodeStatus.ARCHIVED, L.space_id == space_id)
     ).order_by(L.type, L.name)
@@ -58,7 +55,9 @@ def logic_list_archive(db: Session, user_id: UUID, space_id: UUID, query: ListAr
     def output_mapper(item: tuple[Node, ...]):
         node, *_ = item
         out = logic_node_to_output_dict(node)
-        can = logic_node_can_archive(node, SharePermission.MANAGE, db_space == user_id)
+        can = logic_node_can_archive(
+            node, SharePermission.MANAGE, db_space.owner_id == user_id
+        )
         out["can"] = can
         out["is_shared"] = False
         return out
@@ -66,23 +65,21 @@ def logic_list_archive(db: Session, user_id: UUID, space_id: UUID, query: ListAr
     return list(map(output_mapper, db_nodes))
 
 
-# def logic_count_listed_archive(db: Session, space_id: UUID, query: ListArchive):
-#     L = aliased(Node)
-#     R = aliased(Node)
-#
-#     if query.node_id is not None:
-#         statement = select(L, R.status.label("parent_status")).outerjoin(R, onclause=and_(L.parent_id == R.id,
-#                                                                                           R.status == NodeStatus.ACTIVE)).where(
-#             or_(R.status == NodeStatus.ACTIVE, L.parent_id.is_(None)))
-#     else:
-#         statement = select(L)
-#     statement = statement.where(and_(L.status == NodeStatus.ARCHIVED, L.space_id == space_id)).order_by(Node.type,
-#                                                                                                         Node.name)
-#     if query.offset is not None:
-#         statement.offset(query.offset)
-#     if query.limit is not None:
-#         statement.limit(query.limit)
-#     db_nodes = db.execute(statement).all()
+def logic_count_listed_archive(db: Session, space_id: UUID, query: ListArchive):
+    L = aliased(Node)
+    R = aliased(Node)
+
+    statement = select(func.count(L.id))
+    if query.node_id is None:
+        statement = statement.outerjoin(
+            R, onclause=and_(L.parent_id == R.id, R.status == NodeStatus.ACTIVE)
+        ).where(or_(R.status == NodeStatus.ACTIVE, L.parent_id.is_(None)))
+    else:
+        statement = statement.where(L.parent_id == query.node_id)
+    statement = statement.where(
+        and_(L.status == NodeStatus.ARCHIVED, L.space_id == space_id)
+    )
+    return db.execute(statement).scalar() or 0
 
 
 def logic_restore_node(

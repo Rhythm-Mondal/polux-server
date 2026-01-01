@@ -3,7 +3,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.logic.archive import logic_restore_node, logic_list_archive
+from app.logic.archive import (
+    logic_restore_node,
+    logic_list_archive,
+    logic_count_listed_archive,
+)
 from app.logic.space import logic_resolve_default_space_id
 from app.schemas.archive import ListArchiveResponse, ListArchive, RestoreNode
 from app.schemas.common import Token
@@ -24,7 +28,7 @@ def list_archive(
     db: Session = Depends(database.get_session),
 ):
     nodes = logic_list_archive(db, user.user_id, space_id, query)
-    total = 0
+    total = logic_count_listed_archive(db, space_id, query)
     return {"nodes": nodes, "total": total}
 
 
