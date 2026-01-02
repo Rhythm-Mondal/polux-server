@@ -9,10 +9,13 @@ from sqlalchemy import (
     literal,
     desc,
     update,
+    cast,
+    bindparam,
+    Boolean,
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy_utils import Ltree
+from sqlalchemy_utils import Ltree, LtreeType
 
 from app.logic.common import (
     logic_get_space_and_node,
@@ -20,7 +23,6 @@ from app.logic.common import (
     logic_get_user_max_permission,
     logic_node_to_output_dict,
     logic_node_can_general,
-    logic_validate_user_operation_on_node,
     logic_get_user_permission_on_space,
     logic_get_user_effective_permission_on_node,
 )
@@ -248,7 +250,7 @@ def logic_rename_node(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Cannot rename this node"
         )
-    if db_node.type != NodeStatus.ACTIVE:
+    if db_node.status != NodeStatus.ACTIVE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"{db_node.type.capitalize()} is archived",
@@ -359,12 +361,24 @@ def logic_resolve_move_permission(
 
     src_node = (
         db.query(Node)
-        .filter(and_(Node.space_id == space_id, Node.id == src_node_id))
+        .filter(
+            and_(
+                Node.space_id == space_id,
+                Node.id == src_node_id,
+                Node.status != NodeStatus.DELETED,
+            )
+        )
         .first()
     )
     dst_node = (
         db.query(Node)
-        .filter(and_(Node.space_id == space_id, Node.id == dst_node_id))
+        .filter(
+            and_(
+                Node.space_id == space_id,
+                Node.id == dst_node_id,
+                Node.status != NodeStatus.DELETED,
+            )
+        )
         .first()
     )
 
@@ -373,15 +387,27 @@ def logic_resolve_move_permission(
             status_code=status.HTTP_404_NOT_FOUND, detail="Source not found"
         )
 
-    if not dst_node and dst_node_id is not None:
+    if src_node.status != NodeStatus.ACTIVE:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Destination not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Source is archived"
         )
 
-    if dst_node and dst_node.type != NodeType.FOLDER:
+    if not dst_node and dst_node_id is not None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Destination is not a folder"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Destination not found"
         )
+
+    if dst_node:
+        if dst_node.status != NodeStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Destination is archived",
+            )
+        if dst_node.type != NodeType.FOLDER:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Destination is not a folder",
+            )
 
     if db_space.owner_id == user_id:
         return db_space, src_node, dst_node
@@ -416,26 +442,39 @@ def logic_move_node(
         db, user_id, space_id, node_id, body.parent_id
     )
 
-    old_path = db_src.path
-    new_path = (
-        Ltree(f"{db_dst.path}.{db_src.id}") if body.parent_id else Ltree(db_src.id)
-    )
+    old_path = str(db_src.path)
+    new_path = f"{db_dst.path}.{db_src.id}" if body.parent_id else str(db_src.id)
+
+    if db.execute(
+        select(
+            cast(Ltree(old_path), LtreeType)
+            .op("@>")(cast(Ltree(new_path), LtreeType))
+            .cast(Boolean)
+        )
+    ).scalar():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can not move to one self or children",
+        )
 
     try:
-        db_src.path = new_path
+        db_src.path = Ltree(new_path)
         db_src.parent_id = body.parent_id
-        db_src.name = body.name
+        if body.name is not None:
+            db_src.name = body.name
 
         statement = (
             update(Node)
             .where(
                 and_(
-                    Node.path.op("<@")(old_path),
+                    Node.path.op("<@")(Ltree(old_path)),
                     Node.id != node_id,
                 )
             )
             .values(
-                path=new_path + func.subpath(Node.path, func.nlevel(old_path), None)
+                path=literal(new_path).op("||")(
+                    func.subpath(Node.path, func.nlevel(old_path))
+                )
             )
             .returning(Node.id)
         )
