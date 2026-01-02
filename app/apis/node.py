@@ -139,7 +139,6 @@ def move_node(
     user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    # TODO: test
     result = logic_move_node(db, user.user_id, space_id, node_id, body)
     if not result:
         raise HTTPException(

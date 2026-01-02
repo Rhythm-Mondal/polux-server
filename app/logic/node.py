@@ -39,7 +39,7 @@ from app.schemas.node import (
     ListSpaceNodes,
     RenameNode,
     DeleteNode,
-    MoveNode,
+    MoveNode, CopyNode,
 )
 
 
@@ -488,3 +488,146 @@ def logic_move_node(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"A {db_src.type} with same name already exists at destination rename this {db_src.type}?",
         )
+
+
+def logic_resolve_copy_permission(
+    db: Session,
+    user_id: UUID,
+    src_space_id: UUID,
+    src_node_id: int,
+    dst_space_id: UUID,
+    dst_node_id: int | None = None,
+):
+    src_space = db.query(Space).filter(Space.id == src_space_id).first()
+    if not src_space:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Source space not found"
+        )
+
+    src_node = (
+        db.query(Node)
+        .filter(
+            and_(
+                Node.space_id == src_space_id,
+                Node.id == src_node_id,
+                Node.status != NodeStatus.DELETED,
+            )
+        )
+        .first()
+    )
+    dst_node = (
+        db.query(Node)
+        .filter(
+            and_(
+                Node.space_id == src_space_id,
+                Node.id == dst_node_id,
+                Node.status != NodeStatus.DELETED,
+            )
+        )
+        .first()
+    )
+
+    if not src_node:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Source node not found"
+        )
+
+    if src_node.status != NodeStatus.ACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Source node is archived"
+        )
+
+    dst_space = src_space if src_space_id == dst_space_id else db.query(Space).filter(Space.id == dst_space_id).first()
+    if not dst_space:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Destination space not found"
+        )
+
+
+    if not dst_node and dst_node_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Destination node not found"
+        )
+
+    if dst_node:
+        if dst_node.status != NodeStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Destination is archived",
+            )
+        if dst_node.type != NodeType.FOLDER:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Destination is not a folder",
+            )
+
+    if src_space.owner_id == dst_space.owner_id == user_id:
+        return src_space, dst_space, src_node, dst_node
+
+    src_space_permission = logic_get_user_permission_on_space(db, user_id, src_space_id)
+    dst_space_permission = logic_get_user_permission_on_space(db, user_id, dst_space_id)
+    src_node_permission = logic_get_user_effective_permission_on_node(
+        db, user_id, src_space_id, src_node
+    )
+    dst_node_permission = logic_get_user_effective_permission_on_node(
+        db, user_id, dst_space_id, dst_node
+    )
+
+    if max(src_space_permission, src_node_permission) < SharePermission.READ:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"You not have permission to move this {src_node.type}",
+        )
+
+    if max(dst_space_permission, dst_node_permission) < SharePermission.WRITE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"You not have permission to move to this {src_node.type}",
+        )
+
+    return src_space, dst_space, src_node, dst_node
+
+
+def logic_copy_node(db: Session, user_id: UUID, space_id: UUID, node_id: int, body: CopyNode):
+    src_space, dst_space, src_node, dst_node = logic_resolve_copy_permission(db, user_id, space_id, node_id, body.space_id, body.parent_id)
+
+    try:
+        # src_dst_map = {}
+
+        head_node = Node(
+            parent_id=body.parent_id,
+            type=src_node.type,
+            name=body.name if body.name else src_node.name,
+            uploader_id=user_id,
+            status=NodeStatus.ACTIVE,
+        )
+        # src_dst_map[src_node.id] = head_node
+        db.add(head_node)
+        db.commit()
+
+        child_nodes = db.query(Node).filter(and_(Node.path.op("@>")(src_node.path), Node.id != node_id, Node.status == NodeStatus.ACTIVE, Node.space_id == space_id)).all()
+        # for child_node in child_nodes:
+        #     node = Node(
+        #         type=child_node.type,
+        #         name=child_node.name,
+        #         uploader_id=user_id,
+        #         status=NodeStatus.ACTIVE,
+        #     )
+        #     src_dst_map[child_node.id] = node
+        #     db.add(node)
+        #
+        # db.commit()
+        # parent_map = {c.id: c.parent_id for c in child_nodes}
+        #
+        # for cp_src_id, dst_item in src_dst_map.items():
+        #     if cp_src_id == node_id:
+        #         pass
+        #     else:
+        #         cp_item_parent = src_dst_map.get(parent_map.get(cp_src_id))
+        #         dst_item.parent_id = cp_item_parent.id
+
+
+    except IntegrityError as e:
+        logging.error(e)
+        db.rollback()
+        return None
