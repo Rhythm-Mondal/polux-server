@@ -13,7 +13,7 @@ from app.logic.node import (
     logic_archive_node,
     logic_delete_node,
     logic_move_node,
-    logic_copy_node,
+    logic_copy_node, logic_create_file,
 )
 from app.logic.space import logic_resolve_default_space_id
 from app.models.share import SharePermission
@@ -44,9 +44,16 @@ router = APIRouter(
 def create_file(
     body: CreateFile,
     space_id: UUID = Depends(logic_resolve_default_space_id),
+    user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unimplemented")
+    # TODO: Test this
+    result = logic_create_file(db, user.user_id, space_id, body)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create file"
+        )
+    return result
 
 
 @router.post("/me/nodes/folders")

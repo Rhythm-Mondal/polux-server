@@ -31,7 +31,7 @@ from app.logic.common import (
 from app.models.node import (
     Node,
     NodeStatus,
-    NodeType,
+    NodeType, NodeStorage,
 )
 from app.models.share import SharePermission
 from app.models.space import Space
@@ -85,7 +85,18 @@ def logic_create_file(db: Session, user_id: UUID, space_id: UUID, body: CreateFi
                 else Ltree(str(node.path))
             )
             db.flush()
-        return node
+
+            storage = NodeStorage(
+                node_id=node.id,
+                mime_type=body.mime_type,
+                size_bytes=body.size_bytes
+            )
+            db.add(storage)
+        return {
+            "fields": {
+                "id": str(storage.id)
+            }
+        }
     except IntegrityError as e:
         logging.error(e)
         db.rollback()
@@ -93,6 +104,10 @@ def logic_create_file(db: Session, user_id: UUID, space_id: UUID, body: CreateFi
             status_code=status.HTTP_409_CONFLICT,
             detail="A file with same name already exists",
         )
+    except Exception as e:
+        logging.error(e)
+        db.rollback()
+        return None
 
 
 def logic_create_folder(db: Session, user_id: UUID, space_id: UUID, body: CreateFolder):
