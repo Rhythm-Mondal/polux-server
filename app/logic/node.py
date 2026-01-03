@@ -16,6 +16,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy_utils import Ltree, LtreeType
+from queue import Queue
 
 from app.logic.common import (
     logic_get_space_and_node,
@@ -103,7 +104,7 @@ def logic_create_folder(db: Session, user_id: UUID, space_id: UUID, body: Create
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Node must be unique within the space",
+            detail="Node path must be unique within the space",
         )
     except Exception as e:
         logging.error(e)
@@ -592,8 +593,6 @@ def logic_copy_node(db: Session, user_id: UUID, space_id: UUID, node_id: int, bo
     src_space, dst_space, src_node, dst_node = logic_resolve_copy_permission(db, user_id, space_id, node_id, body.space_id, body.parent_id)
 
     try:
-        # src_dst_map = {}
-
         head_node = Node(
             parent_id=body.parent_id,
             type=src_node.type,
@@ -601,33 +600,42 @@ def logic_copy_node(db: Session, user_id: UUID, space_id: UUID, node_id: int, bo
             uploader_id=user_id,
             status=NodeStatus.ACTIVE,
         )
-        # src_dst_map[src_node.id] = head_node
         db.add(head_node)
         db.commit()
-
-        child_nodes = db.query(Node).filter(and_(Node.path.op("@>")(src_node.path), Node.id != node_id, Node.status == NodeStatus.ACTIVE, Node.space_id == space_id)).all()
-        # for child_node in child_nodes:
-        #     node = Node(
-        #         type=child_node.type,
-        #         name=child_node.name,
-        #         uploader_id=user_id,
-        #         status=NodeStatus.ACTIVE,
-        #     )
-        #     src_dst_map[child_node.id] = node
-        #     db.add(node)
-        #
-        # db.commit()
-        # parent_map = {c.id: c.parent_id for c in child_nodes}
-        #
-        # for cp_src_id, dst_item in src_dst_map.items():
-        #     if cp_src_id == node_id:
-        #         pass
-        #     else:
-        #         cp_item_parent = src_dst_map.get(parent_map.get(cp_src_id))
-        #         dst_item.parent_id = cp_item_parent.id
-
-
     except IntegrityError as e:
         logging.error(e)
         db.rollback()
-        return None
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A {src_node.type} with the same name already exists at destination, rename")
+
+    try:
+        head_node.path = Ltree(f"{dst_node.path}.{head_node.id}") if dst_node else Ltree(str(head_node.id))
+    except IntegrityError as e:
+        logging.error(e)
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Node path must be unique within the space",
+        )
+
+    if src_node.type != NodeType.FOLDER:
+        return True
+
+    copy_queue = Queue()
+    copy_queue.put_nowait(
+        {
+            "src_parent_id": node_id,
+            "dst_parent_id": body.parent_id
+        }
+    )
+    while not copy_queue.empty():
+        item = copy_queue.get_nowait()
+        children = db.query(Node).filter(and_(Node.parent_id == item.get("src_parent"), Node.space_id == space_id, Node.status == NodeStatus.ACTIVE)).all()
+        for child in children:
+            node = Node(
+                parent_id=item.get("dst_parent_id"),
+                type=child.type,
+                name=child.name,
+                uploader_id=user_id,
+                status=NodeStatus.ACTIVE,
+            )
+            db.add(node)
