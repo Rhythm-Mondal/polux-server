@@ -12,7 +12,8 @@ from app.logic.node import (
     logic_rename_node,
     logic_archive_node,
     logic_delete_node,
-    logic_move_node, logic_copy_node,
+    logic_move_node,
+    logic_copy_node,
 )
 from app.logic.space import logic_resolve_default_space_id
 from app.models.share import SharePermission

@@ -40,16 +40,17 @@ from app.schemas.node import (
     ListSpaceNodes,
     RenameNode,
     DeleteNode,
-    MoveNode, CopyNode,
+    MoveNode,
+    CopyNode,
 )
 
 
 def logic_create_folder(db: Session, user_id: UUID, space_id: UUID, body: CreateFolder):
     db_space, parent_node = logic_get_space_and_node(db, space_id, body.parent_id)
     if (
-            db_space.owner_id != user_id
-            and logic_get_user_max_permission(db, user_id, space_id, parent_node)
-            < SharePermission.WRITE
+        db_space.owner_id != user_id
+        and logic_get_user_max_permission(db, user_id, space_id, parent_node)
+        < SharePermission.WRITE
     ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Space not found"
@@ -113,12 +114,12 @@ def logic_create_folder(db: Session, user_id: UUID, space_id: UUID, body: Create
 
 
 def logic_list_space_nodes(
-        db: Session, user_id: UUID, space_id: UUID, query: ListSpaceNodes
+    db: Session, user_id: UUID, space_id: UUID, query: ListSpaceNodes
 ):
     db_space, _ = logic_get_space_and_node(db, space_id)
     if (
-            db_space.owner_id != user_id
-            and logic_get_user_max_permission(db, user_id, space_id) < SharePermission.READ
+        db_space.owner_id != user_id
+        and logic_get_user_max_permission(db, user_id, space_id) < SharePermission.READ
     ):
         raise HTTPException(status_code=404, detail="Space not found")
 
@@ -164,7 +165,7 @@ def logic_count_listed_space_nodes(db: Session, space_id: UUID):
 
 
 def logic_list_folder_nodes(
-        db: Session, user_id, space_id: UUID, parent_id: int, query: ListFolderNodes
+    db: Session, user_id, space_id: UUID, parent_id: int, query: ListFolderNodes
 ):
     db_space, parent_node = logic_get_space_and_node(db, space_id, parent_id)
 
@@ -212,7 +213,7 @@ def logic_list_folder_nodes(
 
 
 def logic_count_listed_folder_nodes(
-        db: Session, user_id, space_id: UUID, parent_id: int
+    db: Session, user_id, space_id: UUID, parent_id: int
 ):
     db_space, parent_node = logic_get_space_and_node(db, space_id, parent_id)
 
@@ -240,13 +241,13 @@ def logic_count_listed_folder_nodes(
 
 
 def logic_rename_node(
-        db: Session, user_id, space_id: UUID, node_id: int, body: RenameNode
+    db: Session, user_id, space_id: UUID, node_id: int, body: RenameNode
 ):
     db_space, db_node = logic_get_space_and_node(db, space_id, node_id)
     if (
-            db_space.owner_id != user_id
-            and logic_get_user_max_permission(db, user_id, space_id, db_node)
-            < SharePermission.WRITE
+        db_space.owner_id != user_id
+        and logic_get_user_max_permission(db, user_id, space_id, db_node)
+        < SharePermission.WRITE
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Cannot rename this node"
@@ -273,9 +274,9 @@ def logic_rename_node(
 def logic_archive_node(db: Session, user_id, space_id: UUID, node_id: int):
     db_space, db_node = logic_get_space_and_node(db, space_id, node_id)
     if (
-            db_space.owner_id != user_id
-            and logic_get_user_max_permission(db, user_id, space_id, db_node)
-            < SharePermission.WRITE
+        db_space.owner_id != user_id
+        and logic_get_user_max_permission(db, user_id, space_id, db_node)
+        < SharePermission.WRITE
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Cannot rename this node"
@@ -309,7 +310,7 @@ def logic_archive_node(db: Session, user_id, space_id: UUID, node_id: int):
 
 
 def logic_delete_node(
-        db: Session, user_id, space_id: UUID, node_id: int, query: DeleteNode
+    db: Session, user_id, space_id: UUID, node_id: int, query: DeleteNode
 ):
     db_space, db_node = logic_get_space_and_node(db, space_id, node_id)
     if db_space.owner_id != user_id:
@@ -348,11 +349,11 @@ def logic_delete_node(
 
 
 def logic_resolve_move_permission(
-        db: Session,
-        user_id: UUID,
-        space_id: UUID,
-        src_node_id: int,
-        dst_node_id: int | None = None,
+    db: Session,
+    user_id: UUID,
+    space_id: UUID,
+    src_node_id: int,
+    dst_node_id: int | None = None,
 ):
     db_space = db.query(Space).filter(Space.id == space_id).first()
     if not db_space:
@@ -437,7 +438,7 @@ def logic_resolve_move_permission(
 
 
 def logic_move_node(
-        db: Session, user_id: UUID, space_id: UUID, node_id: int, body: MoveNode
+    db: Session, user_id: UUID, space_id: UUID, node_id: int, body: MoveNode
 ):
     db_space, db_src, db_dst = logic_resolve_move_permission(
         db, user_id, space_id, node_id, body.parent_id
@@ -447,11 +448,11 @@ def logic_move_node(
     new_path = f"{db_dst.path}.{db_src.id}" if body.parent_id else str(db_src.id)
 
     if db.execute(
-            select(
-                cast(Ltree(old_path), LtreeType)
-                        .op("@>")(cast(Ltree(new_path), LtreeType))
-                        .cast(Boolean)
-            )
+        select(
+            cast(Ltree(old_path), LtreeType)
+            .op("@>")(cast(Ltree(new_path), LtreeType))
+            .cast(Boolean)
+        )
     ).scalar():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -492,12 +493,12 @@ def logic_move_node(
 
 
 def logic_resolve_copy_permission(
-        db: Session,
-        user_id: UUID,
-        src_space_id: UUID,
-        src_node_id: int,
-        dst_space_id: UUID,
-        dst_node_id: int | None = None,
+    db: Session,
+    user_id: UUID,
+    src_space_id: UUID,
+    src_node_id: int,
+    dst_space_id: UUID,
+    dst_node_id: int | None = None,
 ) -> tuple[Space, Space, Node, Node]:
     src_space = db.query(Space).filter(Space.id == src_space_id).first()
     if not src_space:
@@ -538,7 +539,11 @@ def logic_resolve_copy_permission(
             status_code=status.HTTP_404_NOT_FOUND, detail="Source node is archived"
         )
 
-    dst_space = src_space if src_space_id == dst_space_id else db.query(Space).filter(Space.id == dst_space_id).first()
+    dst_space = (
+        src_space
+        if src_space_id == dst_space_id
+        else db.query(Space).filter(Space.id == dst_space_id).first()
+    )
     if not dst_space:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Destination space not found"
@@ -596,16 +601,19 @@ def logic_get_subtree_for_copy(db: Session, user_id: UUID, src_node: Node):
             and_(
                 Node.space_id == src_node.space_id,
                 Node.path.op("<@")(src_node.path),
-                Node.status == NodeStatus.ACTIVE
+                Node.status == NodeStatus.ACTIVE,
             )
         )
         .order_by(Node.path.nlevel())
     ).all()
 
 
-def logic_copy_node(db: Session, user_id: UUID, space_id: UUID, node_id: int, body: CopyNode):
-    src_space, dst_space, src_node, dst_node = logic_resolve_copy_permission(db, user_id, space_id, node_id,
-                                                                             body.space_id, body.parent_id)
+def logic_copy_node(
+    db: Session, user_id: UUID, space_id: UUID, node_id: int, body: CopyNode
+):
+    src_space, dst_space, src_node, dst_node = logic_resolve_copy_permission(
+        db, user_id, space_id, node_id, body.space_id, body.parent_id
+    )
 
     old_v_new: dict[int, Node] = {}
     db_nodes = logic_get_space_and_node(db, user_id, src_node)
@@ -615,18 +623,17 @@ def logic_copy_node(db: Session, user_id: UUID, space_id: UUID, node_id: int, bo
             head_node = Node(
                 space_id=body.space_id,
                 parent_id=body.parent_id,
-                type=src_node.type,
+                uploader_id=user_id,
                 name=body.name if body.name else src_node.name,
-                status=NodeStatus.ACTIVE,
-                uploader_id=user_id
+                type=src_node.type,
             )
             db.add(head_node)
             db.flush()
 
             head_node.path = (
                 dst_node.path + Ltree(str(head_node.id))
-                if dst_node else
-                Ltree(str(head_node.id))
+                if dst_node
+                else Ltree(str(head_node.id))
             )
             db.flush()
 
@@ -638,10 +645,9 @@ def logic_copy_node(db: Session, user_id: UUID, space_id: UUID, node_id: int, bo
                 node = Node(
                     space_id=parent.space_id,
                     parent_id=parent.id,
-                    type=db_node.type,
+                    uploader_id=user_id,
                     name=db_node.name,
-                    status=NodeStatus.ACTIVE,
-                    uploader_id=user_id
+                    type=db_node.type,
                 )
                 db.add(node)
                 db.flush()
@@ -655,4 +661,7 @@ def logic_copy_node(db: Session, user_id: UUID, space_id: UUID, node_id: int, bo
     except IntegrityError as e:
         logging.error(e)
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A {src_node.type} with same name already exists at destination")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A {src_node.type} with same name already exists at destination",
+        )
