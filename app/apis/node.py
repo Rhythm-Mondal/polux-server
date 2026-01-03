@@ -12,7 +12,7 @@ from app.logic.node import (
     logic_rename_node,
     logic_archive_node,
     logic_delete_node,
-    logic_move_node,
+    logic_move_node, logic_copy_node,
 )
 from app.logic.space import logic_resolve_default_space_id
 from app.models.share import SharePermission
@@ -125,9 +125,16 @@ def copy_node(
     node_id: int,
     body: CopyNode,
     space_id: UUID = Depends(logic_resolve_default_space_id),
+    user: Token = Depends(get_auth_user),
     db: Session = Depends(database.get_session),
 ):
-    pass
+    # TODO: test logic
+    result = logic_copy_node(db, user.user_id, space_id, node_id, body)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to copy node"
+        )
+    return {"message": "Node copied successfully"}
 
 
 @router.put("/me/nodes/{node_id}/move")
