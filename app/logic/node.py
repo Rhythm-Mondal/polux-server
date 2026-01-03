@@ -29,7 +29,10 @@ from app.logic.common import (
 from app.models.node import (
     Node,
     NodeStatus,
-    NodeType, NodeStorage, NodeStorageStatus,
+    NodeType,
+    NodeStorage,
+    NodeStorageStatus,
+    NodeStorageService,
 )
 from app.models.share import SharePermission
 from app.models.space import Space
@@ -43,37 +46,58 @@ from app.schemas.node import (
     CopyNode,
     CreateFile,
 )
-from app.utils.extra import get_server_url
+from app.utils.extra import get_local_storage_upload_info, save_file_local
 
 
-def logic_upload_file_local(db: Session, space_id: UUID, storage_id: UUID, file: UploadFile):
+def logic_upload_file_local(
+    db: Session, space_id: UUID, storage_id: UUID, key: str, file: UploadFile
+):
     node_storage = db.get(NodeStorage, storage_id)
     if not node_storage:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid target")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid target"
+        )
+
+    if (
+        not db.query(Node)
+        .filter(
+            and_(
+                Node.space_id == space_id,
+                Node.id == node_storage.node_id,
+                Node.status == NodeStatus.ACTIVE,
+            )
+        )
+        .first()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid target"
+        )
 
     if node_storage.status == NodeStorageStatus.DONE:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Can not re-upload")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Can not re-upload"
+        )
 
     if node_storage.mime_type != file.content_type:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mismatch: mimetype")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Mismatch: mimetype"
+        )
 
-    service = ""
-    key = ""
     success = False
-
     try:
         # Upload blob
-
-        # Validate size
-
+        # validate size
+        save_file_local(key=key, fileobj=file.file)
         success = True
     except Exception as e:
         logging.error(e)
 
     try:
-        node_storage.service = service
+        node_storage.service = NodeStorageService.LOCAL
         node_storage.key = key
-        node_storage.status = NodeStorageStatus.DONE if success else NodeStorageStatus.FAILED
+        node_storage.status = (
+            NodeStorageStatus.DONE if success else NodeStorageStatus.FAILED
+        )
         db.commit()
         return node_storage if success else None
     except Exception as e:
@@ -122,17 +146,10 @@ def logic_create_file(db: Session, user_id: UUID, space_id: UUID, body: CreateFi
             db.flush()
 
             storage = NodeStorage(
-                node_id=node.id,
-                mime_type=body.mime_type,
-                size_bytes=body.size_bytes
+                node_id=node.id, mime_type=body.mime_type, size_bytes=body.size_bytes
             )
             db.add(storage)
-        return {
-            "url": f"{get_server_url()}/{db_space.id}/blobs",
-            "fields": {
-                "storage_id": str(storage.id)
-            }
-        }
+        return get_local_storage_upload_info(space_id, storage.id, node.name)
     except IntegrityError as e:
         logging.error(e)
         db.rollback()

@@ -49,10 +49,7 @@ class CreateFile(BaseModel):
     def validate_mime_type(cls, value: str):
         value = value.strip().lower()
         if MIME_ALIASES.get(value, value) not in ALLOWED_MIME_TYPES:
-            raise PydanticCustomError(
-                "value error",
-                "Invalid / Disallowed mimetype"
-            )
+            raise PydanticCustomError("value error", "Invalid / Disallowed mimetype")
         return value
 
 

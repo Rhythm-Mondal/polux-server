@@ -9,7 +9,6 @@ ALLOWED_MIME_TYPES = {
     "application/json",
     "application/xml",
     "application/x-www-form-urlencoded",
-
     # Images
     "image/jpeg",
     "image/png",
@@ -18,20 +17,17 @@ ALLOWED_MIME_TYPES = {
     "image/svg+xml",
     "image/bmp",
     "image/tiff",
-
     # Video
     "video/mp4",
     "video/webm",
     "video/ogg",
     "video/quicktime",
-
     # Audio
     "audio/mpeg",
     "audio/wav",
     "audio/ogg",
     "audio/webm",
     "audio/aac",
-
     # Documents
     "application/pdf",
     "application/msword",
@@ -40,14 +36,12 @@ ALLOWED_MIME_TYPES = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/vnd.ms-powerpoint",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-
     # Archives
     "application/zip",
     "application/x-7z-compressed",
     "application/x-rar-compressed",
     "application/gzip",
     "application/x-tar",
-
     # Other
     "application/octet-stream",
     "application/javascript",

@@ -13,7 +13,9 @@ from app.logic.node import (
     logic_archive_node,
     logic_delete_node,
     logic_move_node,
-    logic_copy_node, logic_create_file, logic_upload_file_local,
+    logic_copy_node,
+    logic_create_file,
+    logic_upload_file_local,
 )
 from app.logic.space import logic_resolve_default_space_id
 from app.schemas.common import Token
@@ -39,12 +41,18 @@ router = APIRouter(
 
 
 @router.post("/{space_id}/blobs")
-def upload_blob(storage_id: UUID, space_id: UUID, file: UploadFile = File(...), db: Session = Depends(
-    database.get_session)):
-    result = logic_upload_file_local(db, space_id, storage_id, file)
+def upload_blob(
+    storage_id: UUID,
+    key: str,
+    space_id: UUID,
+    file: UploadFile = File(...),
+    db: Session = Depends(database.get_session),
+):
+    result = logic_upload_file_local(db, space_id, storage_id, key, file)
     if not result:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to upload binary"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to upload binary",
         )
     return {"message": "Binary successfully uploaded"}
 
