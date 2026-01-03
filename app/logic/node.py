@@ -1,7 +1,7 @@
 import logging
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from fastapi import UploadFile, HTTPException, status
 from sqlalchemy import (
     select,
     and_,
@@ -10,13 +10,11 @@ from sqlalchemy import (
     desc,
     update,
     cast,
-    bindparam,
     Boolean,
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy_utils import Ltree, LtreeType
-from queue import Queue
 
 from app.logic.common import (
     logic_get_space_and_node,
@@ -31,7 +29,7 @@ from app.logic.common import (
 from app.models.node import (
     Node,
     NodeStatus,
-    NodeType, NodeStorage,
+    NodeType, NodeStorage, NodeStorageStatus,
 )
 from app.models.share import SharePermission
 from app.models.space import Space
@@ -45,6 +43,43 @@ from app.schemas.node import (
     CopyNode,
     CreateFile,
 )
+from app.utils.extra import get_server_url
+
+
+def logic_upload_file_local(db: Session, space_id: UUID, storage_id: UUID, file: UploadFile):
+    node_storage = db.get(NodeStorage, storage_id)
+    if not node_storage:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid target")
+
+    if node_storage.status == NodeStorageStatus.DONE:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Can not re-upload")
+
+    if node_storage.mime_type != file.content_type:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mismatch: mimetype")
+
+    service = ""
+    key = ""
+    success = False
+
+    try:
+        # Upload blob
+
+        # Validate size
+
+        success = True
+    except Exception as e:
+        logging.error(e)
+
+    try:
+        node_storage.service = service
+        node_storage.key = key
+        node_storage.status = NodeStorageStatus.DONE if success else NodeStorageStatus.FAILED
+        db.commit()
+        return node_storage if success else None
+    except Exception as e:
+        logging.error(e)
+        db.rollback()
+        return None
 
 
 def logic_create_file(db: Session, user_id: UUID, space_id: UUID, body: CreateFile):
@@ -93,8 +128,9 @@ def logic_create_file(db: Session, user_id: UUID, space_id: UUID, body: CreateFi
             )
             db.add(storage)
         return {
+            "url": f"{get_server_url()}/{db_space.id}/blobs",
             "fields": {
-                "id": str(storage.id)
+                "storage_id": str(storage.id)
             }
         }
     except IntegrityError as e:

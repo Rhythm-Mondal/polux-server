@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.logic.node import (
@@ -13,10 +13,9 @@ from app.logic.node import (
     logic_archive_node,
     logic_delete_node,
     logic_move_node,
-    logic_copy_node, logic_create_file,
+    logic_copy_node, logic_create_file, logic_upload_file_local,
 )
 from app.logic.space import logic_resolve_default_space_id
-from app.models.share import SharePermission
 from app.schemas.common import Token
 from app.schemas.node import (
     CreateFile,
@@ -31,12 +30,23 @@ from app.schemas.node import (
     ListFolderNodesResponse,
     RenameNode,
 )
-from app.utils import database
+from app.core import database
 from app.utils.auth import get_auth_user
 
 router = APIRouter(
     prefix="/spaces",
 )
+
+
+@router.post("/{space_id}/blobs")
+def upload_blob(storage_id: UUID, space_id: UUID, file: UploadFile = File(...), db: Session = Depends(
+    database.get_session)):
+    result = logic_upload_file_local(db, space_id, storage_id, file)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to upload binary"
+        )
+    return {"message": "Binary successfully uploaded"}
 
 
 @router.post("/me/nodes/files")

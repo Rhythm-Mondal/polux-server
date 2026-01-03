@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.utils import database
+from app.core import database
 from app.apis import session, user, space, node, share, archive
 
 database.Base.metadata.create_all(bind=database.engine)

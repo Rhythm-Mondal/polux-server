@@ -10,7 +10,7 @@ from app.logic.user import (
 )
 from app.schemas.common import Token
 from app.schemas.user import UserCreate, UserSearch, UserSearchResponse
-from app.utils import database
+from app.core import database
 from app.utils.auth import get_auth_user
 
 router = APIRouter()

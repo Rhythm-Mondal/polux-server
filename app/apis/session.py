@@ -5,7 +5,7 @@ from app.logic.space import logic_get_user_default_space
 from app.schemas.session import UserLogin
 from app.logic.user import logic_get_user_by_email
 from app.utils.auth import verify_password, create_access_token
-from app.utils import database
+from app.core import database
 
 router = APIRouter()
 

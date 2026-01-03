@@ -30,8 +30,9 @@ setup:
 
 	@echo "🔹 Creating environment file..."
 	@if [ ! -f $(ENV_FILE) ]; then \
+	    echo "SERVER_URL=" >> $(ENV_FILE); \
+	    echo "SECRET_KEY=" >> $(ENV_FILE); \
 		echo "TOKEN_EXPIRE_MINUTES=1440" >> $(ENV_FILE); \
-		echo "SECRET_KEY=" >> $(ENV_FILE); \
 		echo "DB_USER=" >> $(ENV_FILE); \
 		echo "DB_PWD=" >> $(ENV_FILE); \
 		echo "DB_HOST=" >> $(ENV_FILE); \

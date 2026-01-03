@@ -11,7 +11,7 @@ from app.logic.archive import (
 from app.logic.space import logic_resolve_default_space_id
 from app.schemas.archive import ListArchiveResponse, ListArchive, RestoreNode
 from app.schemas.common import Token
-from app.utils import database
+from app.core import database
 from app.utils.auth import get_auth_user
 
 router = APIRouter(

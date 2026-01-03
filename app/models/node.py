@@ -16,7 +16,7 @@ from sqlalchemy.dialects.mysql import BIGINT
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy_utils import LtreeType
 
-from app.utils.database import Base
+from app.core.database import Base
 
 
 class NodeType(enum.StrEnum):

@@ -13,7 +13,7 @@ from app.schemas.share import (
     ListSharedNodes,
     ListShares,
 )
-from app.utils import database
+from app.core import database
 from app.utils.auth import get_auth_user
 
 router = APIRouter(prefix="/spaces")

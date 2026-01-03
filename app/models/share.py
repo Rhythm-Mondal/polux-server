@@ -11,7 +11,7 @@ from sqlalchemy import (
     Index,
 )
 
-from app.utils.database import Base
+from app.core.database import Base
 
 
 class SharePermission:

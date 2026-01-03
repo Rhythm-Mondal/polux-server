@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.logic.space import (
-    logic_get_user_space_by_name,
     logic_create_space,
     logic_list_spaces,
     logic_count_listed_spaces,
@@ -19,7 +18,7 @@ from app.schemas.space import (
     DeleteSpace,
     RenameSpace,
 )
-from app.utils import database
+from app.core import database
 from app.utils.auth import get_auth_user
 
 router = APIRouter(
