@@ -1,4 +1,5 @@
 import enum
+from uuid import uuid4
 
 from sqlalchemy import (
     ForeignKey,
@@ -11,6 +12,8 @@ from sqlalchemy import (
     func,
     Index,
 )
+from sqlalchemy.dialects.mysql import BIGINT
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy_utils import LtreeType
 
 from app.utils.database import Base
@@ -83,15 +86,50 @@ class Node(Base):
     )
 
 
-# class NodeStorage(Base):
-#     __tablename__ = "node_storages"
-#     id = Column(Integer, primary_key=True, autoincrement=True)
-#     node = Column(Integer, ForeignKey("nodes.id"), nullable=False, index=True)
-#     service = Column(String, nullable=False)
-#     mimetype = Column(String, nullable=False)
-#     info = Column(JSONB, nullable=True)
-#
-#
+class NodeStorageStatus(enum.StrEnum):
+    PENDING = "pending"
+    DONE = "done"
+    FAILED = "failed"
+
+
+class NodeStorageService(enum.StrEnum):
+    LOCAL = "local"
+    S3 = "aws:s3"
+    GCS = "gcp:gcs"
+
+
+class NodeStorage(Base):
+    __tablename__ = "node_storages"
+    id = Column(UUID, primary_key=True, default=uuid4)
+    node_id = Column(Integer, ForeignKey("nodes.id"), index=True)
+    status = Column(
+        Enum(
+            NodeStorageStatus,
+            name="node_storage_status",
+            values_callable=lambda x: [e.value for e in x],
+            create_type=False,
+        ),
+        server_default=NodeStorageStatus.PENDING,
+    )
+    service = Column(
+        Enum(
+            NodeStorageService,
+            name="node_storage_service",
+            values_callable=lambda x: [e.value for e in x],
+            create_type=False,
+        ),
+    )
+    key = Column(String)
+    mime_type = Column(String)
+    size_bytes = Column(BIGINT)
+    checksum = Column(String)
+    data = Column(JSONB)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 # class NodeUploadRequest(Base):
 #     __tablename__ = "node_upload_requests"
 #     id = Column(UUID, primary_key=True, default=uuid4)

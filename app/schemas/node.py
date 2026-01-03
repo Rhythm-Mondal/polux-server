@@ -35,7 +35,7 @@ class ListNode(Node):
     can: ListNodeCan
 
 
-class UploadFile(BaseModel):
+class CreateFile(BaseModel):
     name: str
     parent_id: int = None
     overwrite: bool = False

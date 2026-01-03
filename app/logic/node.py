@@ -26,6 +26,7 @@ from app.logic.common import (
     logic_node_can_general,
     logic_get_user_permission_on_space,
     logic_get_user_effective_permission_on_node,
+    logic_user_satisfies_permission,
 )
 from app.models.node import (
     Node,
@@ -42,18 +43,66 @@ from app.schemas.node import (
     DeleteNode,
     MoveNode,
     CopyNode,
+    CreateFile,
 )
+
+
+def logic_create_file(db: Session, user_id: UUID, space_id: UUID, body: CreateFile):
+    db_space, parent_node = logic_get_space_and_node(db, space_id, body.parent_id)
+    if not logic_user_satisfies_permission(
+        db, user_id, db_space, parent_node, SharePermission.WRITE
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_NOT_FOUND,
+            detail="You do not have permission to upload files here",
+        )
+
+    if body.parent_id:
+        if parent_node.status != NodeStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Parent is archived"
+            )
+        if parent_node.type != NodeType.FOLDER:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Parent is not a folder"
+            )
+
+    try:
+        with db.begin():
+            node = Node(
+                space_id=space_id,
+                parent_id=body.parent_id,
+                uploader_id=user_id,
+                name=body.name,
+                type=NodeType.FOLDER,
+            )
+            db.add(node)
+            db.flush()
+
+            node.path = (
+                parent_node.path + Ltree(str(node.path))
+                if body.parent_id
+                else Ltree(str(node.path))
+            )
+            db.flush()
+        return node
+    except IntegrityError as e:
+        logging.error(e)
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A file with same name already exists",
+        )
 
 
 def logic_create_folder(db: Session, user_id: UUID, space_id: UUID, body: CreateFolder):
     db_space, parent_node = logic_get_space_and_node(db, space_id, body.parent_id)
-    if (
-        db_space.owner_id != user_id
-        and logic_get_user_max_permission(db, user_id, space_id, parent_node)
-        < SharePermission.WRITE
+    if not logic_user_satisfies_permission(
+        db, user_id, db_space, parent_node, SharePermission.WRITE
     ):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Space not found"
+            status_code=status.HTTP_403_NOT_FOUND,
+            detail="You do not have permission to create folders here",
         )
 
     if body.parent_id:

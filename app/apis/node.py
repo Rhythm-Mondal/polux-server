@@ -19,7 +19,7 @@ from app.logic.space import logic_resolve_default_space_id
 from app.models.share import SharePermission
 from app.schemas.common import Token
 from app.schemas.node import (
-    UploadFile,
+    CreateFile,
     CreateFolder,
     GetNodeResponse,
     ListSpaceNodes,
@@ -41,8 +41,8 @@ router = APIRouter(
 
 @router.post("/me/nodes/files")
 @router.post("/{space_id}/nodes/files")
-def upload_files(
-    body: UploadFile,
+def create_file(
+    body: CreateFile,
     space_id: UUID = Depends(logic_resolve_default_space_id),
     db: Session = Depends(database.get_session),
 ):
