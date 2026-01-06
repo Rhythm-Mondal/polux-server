@@ -25,6 +25,8 @@ def share_node(
     node_id: int,
     body: ShareNode,
     space_id: UUID = Depends(logic_resolve_default_space_id),
+    user: Token = Depends(get_auth_user),
+    db: Session = Depends(database.get_session),
 ):
     pass
 
